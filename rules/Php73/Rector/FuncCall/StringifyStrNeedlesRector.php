@@ -9,10 +9,8 @@ use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\Cast\String_;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Scalar\Encapsed;
-use PHPStan\Type\StringType;
 use Rector\Core\Rector\AbstractRector;
 use Rector\Core\ValueObject\PhpVersionFeature;
-use Rector\Php73\NodeTypeAnalyzer\NodeTypeAnalyzer;
 use Rector\VersionBonding\Contract\MinPhpVersionInterface;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -38,11 +36,6 @@ final class StringifyStrNeedlesRector extends AbstractRector implements MinPhpVe
         'strrchr',
         'stristr',
     ];
-
-    public function __construct(
-        private readonly NodeTypeAnalyzer $nodeTypeAnalyzer
-    ) {
-    }
 
     public function provideMinPhpVersion(): int
     {
@@ -95,15 +88,7 @@ CODE_SAMPLE
         $needleArgValue = $node->args[1]->value;
 
         $needleType = $this->getType($needleArgValue);
-        if ($needleType instanceof StringType) {
-            return null;
-        }
-
-        if ($this->nodeTypeAnalyzer->isStringyType($needleType)) {
-            return null;
-        }
-
-        if ($needleArgValue instanceof String_) {
+        if ($needleType->isString()->yes()) {
             return null;
         }
 

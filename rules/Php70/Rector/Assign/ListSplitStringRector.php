@@ -7,7 +7,6 @@ namespace Rector\Php70\Rector\Assign;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\List_;
-use PHPStan\Type\StringType;
 use Rector\Core\Rector\AbstractRector;
 use Rector\Core\ValueObject\PhpVersionFeature;
 use Rector\VersionBonding\Contract\MinPhpVersionInterface;
@@ -53,7 +52,7 @@ final class ListSplitStringRector extends AbstractRector implements MinPhpVersio
         }
 
         $exprType = $this->getType($node->expr);
-        if (! $exprType instanceof StringType) {
+        if (! $exprType->isString()->yes()) {
             return null;
         }
 

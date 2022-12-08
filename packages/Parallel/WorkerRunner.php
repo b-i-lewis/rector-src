@@ -6,11 +6,13 @@ namespace Rector\Parallel;
 
 use Clue\React\NDJson\Decoder;
 use Clue\React\NDJson\Encoder;
+use Nette\Utils\FileSystem;
 use PHPStan\Analyser\NodeScopeResolver;
 use Rector\Core\Application\FileProcessor\PhpFileProcessor;
 use Rector\Core\Console\Style\RectorConsoleOutputStyle;
 use Rector\Core\Provider\CurrentFileProvider;
 use Rector\Core\StaticReflection\DynamicSourceLocatorDecorator;
+use Rector\Core\Util\ArrayParametersMerger;
 use Rector\Core\ValueObject\Application\File;
 use Rector\Core\ValueObject\Configuration;
 use Rector\Core\ValueObject\Error\SystemError;
@@ -18,8 +20,6 @@ use Rector\Parallel\ValueObject\Bridge;
 use Symplify\EasyParallel\Enum\Action;
 use Symplify\EasyParallel\Enum\ReactCommand;
 use Symplify\EasyParallel\Enum\ReactEvent;
-use Symplify\PackageBuilder\Yaml\ParametersMerger;
-use Symplify\SmartFileSystem\SmartFileInfo;
 use Throwable;
 
 final class WorkerRunner
@@ -30,7 +30,7 @@ final class WorkerRunner
     private const RESULT = 'result';
 
     public function __construct(
-        private readonly ParametersMerger $parametersMerger,
+        private readonly ArrayParametersMerger $arrayParametersMerger,
         private readonly CurrentFileProvider $currentFileProvider,
         private readonly PhpFileProcessor $phpFileProcessor,
         private readonly NodeScopeResolver $nodeScopeResolver,
@@ -80,9 +80,7 @@ final class WorkerRunner
 
             foreach ($filePaths as $filePath) {
                 try {
-                    $smartFileInfo = new SmartFileInfo($filePath);
-
-                    $file = new File($smartFileInfo, $smartFileInfo->getContents());
+                    $file = new File($filePath, FileSystem::read($filePath));
                     $this->currentFileProvider->setFile($file);
 
                     if (! $this->phpFileProcessor->supports($file, $configuration)) {
@@ -91,10 +89,24 @@ final class WorkerRunner
 
                     $currentErrorsAndFileDiffs = $this->phpFileProcessor->process($file, $configuration);
 
-                    $errorAndFileDiffs = $this->parametersMerger->merge(
+                    $errorAndFileDiffs = $this->arrayParametersMerger->merge(
                         $errorAndFileDiffs,
                         $currentErrorsAndFileDiffs
                     );
+
+                    // warn about deprecated @noRector annotation
+                    if (! str_ends_with($file->getFilePath(), 'WorkerRunner.php')
+                        && (
+                            str_contains($file->getFileContent(), ' @noRector ') ||
+                            str_contains($file->getFileContent(), ' @norector ')
+                        )
+                    ) {
+                        $systemErrors[] = new SystemError(
+                            'The @noRector annotation was deprecated and removed due to hiding fixed errors. Use more precise $rectorConfig->skip() method in the rector.php config.',
+                            $file->getFilePath()
+                        );
+                        continue;
+                    }
                 } catch (Throwable $throwable) {
                     ++$systemErrorsCount;
                     $systemErrors = $this->collectSystemErrors($systemErrors, $throwable, $filePath);

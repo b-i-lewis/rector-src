@@ -13,7 +13,6 @@ use Rector\Naming\ExpectedNameResolver\MatchPropertyTypeExpectedNameResolver;
 use Rector\Naming\ValueObject\PropertyRename;
 use Rector\Naming\ValueObjectFactory\PropertyRenameFactory;
 use Rector\Testing\PHPUnit\AbstractTestCase;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class PropertyRenameFactoryTest extends AbstractTestCase
 {
@@ -41,9 +40,9 @@ final class PropertyRenameFactoryTest extends AbstractTestCase
     /**
      * @dataProvider provideData()
      */
-    public function test(SmartFileInfo $fileInfoWithProperty, string $expectedName, string $currentName): void
+    public function test(string $filePathWithProperty, string $expectedName, string $currentName): void
     {
-        $property = $this->getPropertyFromFileInfo($fileInfoWithProperty);
+        $property = $this->getPropertyFromFilePath($filePathWithProperty);
 
         $expectedPropertyName = $this->matchPropertyTypeExpectedNameResolver->resolve($property);
         if ($expectedPropertyName === null) {
@@ -59,17 +58,14 @@ final class PropertyRenameFactoryTest extends AbstractTestCase
         $this->assertSame($currentName, $actualPropertyRename->getCurrentName());
     }
 
-    /**
-     * @return Iterator<string[]|SmartFileInfo[]>
-     */
     public function provideData(): Iterator
     {
-        yield [new SmartFileInfo(__DIR__ . '/Fixture/skip_some_class.php.inc'), 'eliteManager', 'eventManager'];
+        yield [__DIR__ . '/Fixture/skip_some_class.php.inc', 'eliteManager', 'eventManager'];
     }
 
-    private function getPropertyFromFileInfo(SmartFileInfo $fileInfo): Property
+    private function getPropertyFromFilePath(string $filePath): Property
     {
-        $nodes = $this->fileInfoParser->parseFileInfoToNodesAndDecorate($fileInfo);
+        $nodes = $this->fileInfoParser->parseFileInfoToNodesAndDecorate($filePath);
 
         $property = $this->betterNodeFinder->findFirstInstanceOf($nodes, Property::class);
         if (! $property instanceof Property) {

@@ -11,6 +11,7 @@ use PhpParser\Node\Expr\AssignOp\Div as AssignDiv;
 use PhpParser\Node\Expr\AssignOp\Minus as AssignMinus;
 use PhpParser\Node\Expr\AssignOp\Mul as AssignMul;
 use PhpParser\Node\Expr\AssignOp\Plus as AssignPlus;
+use PhpParser\Node\Expr\BinaryOp;
 use PhpParser\Node\Expr\BinaryOp\Div;
 use PhpParser\Node\Expr\BinaryOp\Minus;
 use PhpParser\Node\Expr\BinaryOp\Mul;
@@ -134,9 +135,21 @@ CODE_SAMPLE
         return null;
     }
 
-    private function processBinaryPlusAndMinus(
-        \PhpParser\Node\Expr\BinaryOp\Plus | \PhpParser\Node\Expr\BinaryOp\Minus $binaryOp
-    ): ?Expr {
+    private function areNumberType(BinaryOp $binaryOp): bool
+    {
+        if (! $this->nodeTypeResolver->isNumberType($binaryOp->left)) {
+            return false;
+        }
+
+        return $this->nodeTypeResolver->isNumberType($binaryOp->right);
+    }
+
+    private function processBinaryPlusAndMinus(Plus | Minus $binaryOp): ?Expr
+    {
+        if (! $this->areNumberType($binaryOp)) {
+            return null;
+        }
+
         if ($this->valueResolver->isValue($binaryOp->left, 0) && $this->nodeTypeResolver->isNumberType(
             $binaryOp->right
         )) {
@@ -151,16 +164,15 @@ CODE_SAMPLE
             return null;
         }
 
-        if (! $this->nodeTypeResolver->isNumberType($binaryOp->left)) {
-            return null;
-        }
-
         return $binaryOp->left;
     }
 
-    private function processBinaryMulAndDiv(
-        \PhpParser\Node\Expr\BinaryOp\Mul | \PhpParser\Node\Expr\BinaryOp\Div $binaryOp
-    ): ?Expr {
+    private function processBinaryMulAndDiv(Mul | Div $binaryOp): ?Expr
+    {
+        if (! $this->areNumberType($binaryOp)) {
+            return null;
+        }
+
         if ($binaryOp instanceof Mul && $this->valueResolver->isValue(
             $binaryOp->left,
             1
@@ -169,10 +181,6 @@ CODE_SAMPLE
         }
 
         if (! $this->valueResolver->isValue($binaryOp->right, 1)) {
-            return null;
-        }
-
-        if (! $this->nodeTypeResolver->isNumberType($binaryOp->left)) {
             return null;
         }
 

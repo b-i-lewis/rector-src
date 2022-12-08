@@ -7,16 +7,15 @@ namespace Rector\Tests\Php53\Rector\Variable\ReplaceHttpServerVarsByServerRector
 use Iterator;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
 use SplFileInfo;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class ReplaceHttpServerVarsByServerRectorTest extends AbstractRectorTestCase
 {
     /**
      * @dataProvider provideData()
      */
-    public function test(SmartFileInfo $fileInfo): void
+    public function test(string $filePath): void
     {
-        $this->doTestFileInfo($fileInfo);
+        $this->doTestFile($filePath);
     }
 
     /**

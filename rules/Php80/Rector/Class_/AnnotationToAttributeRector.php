@@ -12,6 +12,7 @@ use PhpParser\Node\Param;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Function_;
+use PhpParser\Node\Stmt\Interface_;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Use_;
 use PHPStan\PhpDocParser\Ast\Node as DocNode;
@@ -24,13 +25,14 @@ use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
 use Rector\Core\Rector\AbstractRector;
 use Rector\Core\ValueObject\PhpVersionFeature;
 use Rector\Naming\Naming\UseImportsResolver;
+use Rector\Php80\NodeAnalyzer\PhpAttributeAnalyzer;
 use Rector\Php80\NodeFactory\AttrGroupsFactory;
 use Rector\Php80\NodeManipulator\AttributeGroupNamedArgumentManipulator;
 use Rector\Php80\ValueObject\AnnotationToAttribute;
 use Rector\Php80\ValueObject\DoctrineTagAndAnnotationToAttribute;
 use Rector\PhpAttribute\NodeFactory\PhpAttributeGroupFactory;
+use Rector\PhpDocParser\PhpDocParser\PhpDocNodeTraverser;
 use Rector\VersionBonding\Contract\MinPhpVersionInterface;
-use Symplify\Astral\PhpDocParser\PhpDocNodeTraverser;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\ConfiguredCodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 use Webmozart\Assert\Assert;
@@ -53,6 +55,7 @@ final class AnnotationToAttributeRector extends AbstractRector implements Config
         private readonly PhpDocTagRemover $phpDocTagRemover,
         private readonly AttributeGroupNamedArgumentManipulator $attributeGroupNamedArgumentManipulator,
         private readonly UseImportsResolver $useImportsResolver,
+        private readonly PhpAttributeAnalyzer $phpAttributeAnalyzer
     ) {
     }
 
@@ -104,11 +107,12 @@ CODE_SAMPLE
             Function_::class,
             Closure::class,
             ArrowFunction::class,
+            Interface_::class,
         ];
     }
 
     /**
-     * @param Class_|Property|Param|ClassMethod|Function_|Closure|ArrowFunction $node
+     * @param Class_|Property|Param|ClassMethod|Function_|Closure|ArrowFunction|Interface_ $node
      */
     public function refactor(Node $node): ?Node
     {
@@ -206,6 +210,7 @@ CODE_SAMPLE
         }
 
         $doctrineTagAndAnnotationToAttributes = [];
+        $doctrineTagValueNodes = [];
 
         foreach ($phpDocInfo->getPhpDocNode()->children as $phpDocChildNode) {
             if (! $phpDocChildNode instanceof PhpDocTagNode) {
@@ -226,11 +231,20 @@ CODE_SAMPLE
                 $doctrineTagValueNode,
                 $annotationToAttribute,
             );
+            $doctrineTagValueNodes[] = $doctrineTagValueNode;
+        }
 
+        $attributeGroups = $this->attrGroupsFactory->create($doctrineTagAndAnnotationToAttributes, $uses);
+
+        if ($this->phpAttributeAnalyzer->hasRemoveArrayState($attributeGroups)) {
+            return [];
+        }
+
+        foreach ($doctrineTagValueNodes as $doctrineTagValueNode) {
             $this->phpDocTagRemover->removeTagValueFromNode($phpDocInfo, $doctrineTagValueNode);
         }
 
-        return $this->attrGroupsFactory->create($doctrineTagAndAnnotationToAttributes, $uses);
+        return $attributeGroups;
     }
 
     private function matchAnnotationToAttribute(

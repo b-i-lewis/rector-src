@@ -8,7 +8,6 @@ use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Scalar\String_;
-use PHPStan\Type\StringType;
 use Rector\Core\NodeAnalyzer\ArgsAnalyzer;
 use Rector\Core\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
@@ -98,7 +97,7 @@ CODE_SAMPLE
         $valueArgument = $secondArg->value;
 
         $valueType = $this->getType($valueArgument);
-        if (! $valueType instanceof StringType) {
+        if (! $valueType->isString()->yes()) {
             return null;
         }
 

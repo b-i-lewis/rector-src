@@ -39,11 +39,6 @@ final class SetList implements SetListInterface
     /**
      * @var string
      */
-    public const MONOLOG_20 = __DIR__ . '/../../../config/set/monolog20.php';
-
-    /**
-     * @var string
-     */
     public const MYSQL_TO_MYSQLI = __DIR__ . '/../../../config/set/mysql-to-mysqli.php';
 
     /**
@@ -132,6 +127,7 @@ final class SetList implements SetListInterface
     public const TYPE_DECLARATION = __DIR__ . '/../../../config/set/type-declaration.php';
 
     /**
+     * @deprecated Use only TYPE_DECLARATION instead
      * @var string
      */
     public const TYPE_DECLARATION_STRICT = __DIR__ . '/../../../config/set/type-declaration-strict.php';
@@ -140,9 +136,4 @@ final class SetList implements SetListInterface
      * @var string
      */
     public const EARLY_RETURN = __DIR__ . '/../../../config/set/early-return.php';
-
-    /**
-     * @var string
-     */
-    public const RECTOR_CONFIG = __DIR__ . '/../../../config/set/rector-config.php';
 }

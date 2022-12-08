@@ -10,7 +10,7 @@ use PHPStan\PhpDocParser\Ast\PhpDoc\ParamTagValueNode;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocTagNode;
 use Rector\BetterPhpDocParser\PhpDocInfo\PhpDocInfo;
 use Rector\DeadCode\PhpDoc\DeadParamTagValueNodeAnalyzer;
-use Symplify\Astral\PhpDocParser\PhpDocNodeTraverser;
+use Rector\PhpDocParser\PhpDocParser\PhpDocNodeTraverser;
 
 final class ParamTagRemover
 {
@@ -19,12 +19,15 @@ final class ParamTagRemover
     ) {
     }
 
-    public function removeParamTagsIfUseless(PhpDocInfo $phpDocInfo, FunctionLike $functionLike): void
+    public function removeParamTagsIfUseless(PhpDocInfo $phpDocInfo, FunctionLike $functionLike): bool
     {
+        $hasChanged = false;
+
         $phpDocNodeTraverser = new PhpDocNodeTraverser();
         $phpDocNodeTraverser->traverseWithCallable($phpDocInfo->getPhpDocNode(), '', function (Node $docNode) use (
             $functionLike,
-            $phpDocInfo
+            $phpDocInfo,
+            &$hasChanged
         ): ?int {
             if (! $docNode instanceof PhpDocTagNode) {
                 return null;
@@ -44,7 +47,10 @@ final class ParamTagRemover
             }
 
             $phpDocInfo->markAsChanged();
+            $hasChanged = true;
             return PhpDocNodeTraverser::NODE_REMOVE;
         });
+
+        return $hasChanged;
     }
 }

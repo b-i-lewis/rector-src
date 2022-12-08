@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Rector\Core\Tests\PhpParser\Printer;
 
+use Nette\Utils\FileSystem;
 use Rector\Core\PhpParser\Printer\FormatPerservingPrinter;
 use Rector\Testing\PHPUnit\AbstractTestCase;
-use Symplify\SmartFileSystem\SmartFileInfo;
-use Symplify\SmartFileSystem\SmartFileSystem;
 
 final class FormatPerservingPrinterTest extends AbstractTestCase
 {
@@ -18,18 +17,15 @@ final class FormatPerservingPrinterTest extends AbstractTestCase
 
     private FormatPerservingPrinter $formatPerservingPrinter;
 
-    private SmartFileSystem $smartFileSystem;
-
     protected function setUp(): void
     {
         $this->boot();
         $this->formatPerservingPrinter = $this->getService(FormatPerservingPrinter::class);
-        $this->smartFileSystem = $this->getService(SmartFileSystem::class);
     }
 
     protected function tearDown(): void
     {
-        $this->smartFileSystem->remove(__DIR__ . '/Fixture');
+        FileSystem::delete(__DIR__ . '/Fixture');
     }
 
     public function testFileModeIsPreserved(): void
@@ -43,8 +39,9 @@ final class FormatPerservingPrinterTest extends AbstractTestCase
 
         chmod(__DIR__ . '/Fixture/file.php', self::EXPECTED_FILEMOD);
 
-        $fileInfo = new SmartFileInfo(__DIR__ . '/Fixture/file.php');
-        $printedFile = $this->formatPerservingPrinter->printToFile($fileInfo, [], [], []);
+        $filePath = __DIR__ . '/Fixture/file.php';
+
+        $printedFile = $this->formatPerservingPrinter->printToFile($filePath, [], [], []);
         $this->assertStringEqualsFile(__DIR__ . '/Fixture/file.php', $printedFile);
 
         $this->assertSame(self::EXPECTED_FILEMOD, fileperms(__DIR__ . '/Fixture/file.php') & 0777);

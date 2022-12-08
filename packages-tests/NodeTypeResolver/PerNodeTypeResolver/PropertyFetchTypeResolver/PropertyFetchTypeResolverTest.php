@@ -8,41 +8,37 @@ use Iterator;
 use PhpParser\Node\Expr\PropertyFetch;
 use PHPStan\Type\Type;
 use PHPStan\Type\VerbosityLevel;
+use Rector\Testing\Fixture\FixtureFileFinder;
+use Rector\Testing\Fixture\FixtureSplitter;
+use Rector\Testing\Fixture\FixtureTempFileDumper;
 use Rector\Tests\NodeTypeResolver\PerNodeTypeResolver\AbstractNodeTypeResolverTest;
-use Symplify\EasyTesting\DataProvider\StaticFixtureFinder;
-use Symplify\EasyTesting\StaticFixtureSplitter;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class PropertyFetchTypeResolverTest extends AbstractNodeTypeResolverTest
 {
     /**
      * @dataProvider provideData()
      */
-    public function test(SmartFileInfo $smartFileInfo): void
+    public function test(string $filePath): void
     {
-        $this->doTestFileInfo($smartFileInfo);
+        $this->doTestFile($filePath);
     }
 
-    /**
-     * @return Iterator<SmartFileInfo>
-     */
     public function provideData(): Iterator
     {
-        return StaticFixtureFinder::yieldDirectoryExclusively(__DIR__ . '/Fixture');
+        return FixtureFileFinder::yieldDirectory(__DIR__ . '/Fixture');
     }
 
-    private function doTestFileInfo(SmartFileInfo $smartFileInfo): void
+    private function doTestFile(string $filePath): void
     {
-        $inputFileInfoAndExpectedFileInfo = StaticFixtureSplitter::splitFileInfoToLocalInputAndExpectedFileInfos(
-            $smartFileInfo
-        );
-        $inputFileInfo = $inputFileInfoAndExpectedFileInfo->getInputFileInfo();
-        $expectedFileInfo = $inputFileInfoAndExpectedFileInfo->getExpectedFileInfo();
+        [$inputFileContents, $expectedType] = FixtureSplitter::loadFileAndSplitInputAndExpected($filePath);
+        $inputFilePath = FixtureTempFileDumper::dump($inputFileContents);
 
-        $propertyFetchNodes = $this->getNodesForFileOfType($inputFileInfo->getRealPath(), PropertyFetch::class);
+        $propertyFetchNodes = $this->getNodesForFileOfType($inputFilePath, PropertyFetch::class);
         $resolvedType = $this->nodeTypeResolver->getType($propertyFetchNodes[0]);
 
-        $expectedType = include $expectedFileInfo->getRealPath();
+        // this file actually containts PHP for type
+        $typeFilePath = FixtureTempFileDumper::dump($expectedType);
+        $expectedType = include $typeFilePath;
 
         $expectedTypeAsString = $this->getStringFromType($expectedType);
         $resolvedTypeAsString = $this->getStringFromType($resolvedType);

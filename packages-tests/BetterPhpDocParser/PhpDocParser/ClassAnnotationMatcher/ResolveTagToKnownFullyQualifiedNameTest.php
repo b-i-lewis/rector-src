@@ -12,10 +12,9 @@ use Rector\BetterPhpDocParser\PhpDocParser\ClassAnnotationMatcher;
 use Rector\Core\Exception\ShouldNotHappenException;
 use Rector\Core\PhpParser\Node\BetterNodeFinder;
 use Rector\NodeNameResolver\NodeNameResolver;
+use Rector\Testing\Fixture\FixtureFileFinder;
 use Rector\Testing\PHPUnit\AbstractTestCase;
 use Rector\Testing\TestingParser\TestingParser;
-use Symplify\EasyTesting\DataProvider\StaticFixtureFinder;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class ResolveTagToKnownFullyQualifiedNameTest extends AbstractTestCase
 {
@@ -43,9 +42,9 @@ final class ResolveTagToKnownFullyQualifiedNameTest extends AbstractTestCase
     /**
      * @dataProvider provideData()
      */
-    public function testResolvesClass(SmartFileInfo $file): void
+    public function testResolvesClass(string $filePath): void
     {
-        $nodes = $this->testingParser->parseFileToDecoratedNodes($file->getRelativeFilePath());
+        $nodes = $this->testingParser->parseFileToDecoratedNodes($filePath);
         $properties = $this->nodeFinder->findInstancesOf($nodes, [Property::class]);
 
         foreach ($properties as $property) {
@@ -70,12 +69,8 @@ final class ResolveTagToKnownFullyQualifiedNameTest extends AbstractTestCase
         }
     }
 
-    /**
-     * @return Iterator<SmartFileInfo>
-     */
     public function provideData(): Iterator
     {
-        $directory = __DIR__ . '/Fixture';
-        return StaticFixtureFinder::yieldDirectory($directory);
+        return FixtureFileFinder::yieldDirectory(__DIR__ . '/Fixture');
     }
 }

@@ -7,6 +7,7 @@ use Doctrine\Inflector\Inflector;
 use Doctrine\Inflector\Rules\English\InflectorFactory;
 use OndraM\CiDetector\CiDetector;
 use PhpParser\BuilderFactory;
+use PhpParser\ConstExprEvaluator;
 use PhpParser\Lexer;
 use PhpParser\NodeFinder;
 use PhpParser\NodeVisitor\CloningVisitor;
@@ -17,6 +18,7 @@ use PHPStan\Dependency\DependencyResolver;
 use PHPStan\File\FileHelper;
 use PHPStan\Parser\Parser;
 use PHPStan\PhpDoc\TypeNodeResolver;
+use PHPStan\PhpDocParser\Parser\ConstExprParser;
 use PHPStan\PhpDocParser\Parser\PhpDocParser;
 use PHPStan\PhpDocParser\Parser\TypeParser;
 use PHPStan\Reflection\ReflectionProvider;
@@ -27,30 +29,27 @@ use Rector\Caching\CacheFactory;
 use Rector\Caching\ValueObject\Storage\MemoryCacheStorage;
 use Rector\Config\RectorConfig;
 use Rector\Core\Bootstrap\ExtensionConfigResolver;
+use Rector\Core\Configuration\Parameter\ParameterProvider;
 use Rector\Core\Console\ConsoleApplication;
 use Rector\Core\Console\Style\RectorConsoleOutputStyle;
 use Rector\Core\Console\Style\RectorConsoleOutputStyleFactory;
+use Rector\Core\Console\Style\SymfonyStyleFactory;
 use Rector\Core\Validation\Collector\EmptyConfigurableRectorCollector;
 use Rector\NodeTypeResolver\DependencyInjection\PHPStanServicesFactory;
 use Rector\NodeTypeResolver\Reflection\BetterReflection\SourceLocator\IntermediateSourceLocator;
 use Rector\NodeTypeResolver\Reflection\BetterReflection\SourceLocatorProvider\DynamicSourceLocatorProvider;
+use Rector\PhpDocParser\NodeTraverser\SimpleCallableNodeTraverser;
+use Rector\PhpDocParser\PhpParser\SmartPhpParser;
+use Rector\PhpDocParser\PhpParser\SmartPhpParserFactory;
 use Rector\PSR4\Composer\PSR4NamespaceMatcher;
 use Rector\PSR4\Contract\PSR4AutoloadNamespaceMatcherInterface;
 use Rector\Utils\Command\MissingInSetCommand;
+use SebastianBergmann\Diff\Differ;
 use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
-use Symplify\Astral\NodeTraverser\SimpleCallableNodeTraverser;
+use Symfony\Component\Filesystem\Filesystem;
 use Symplify\EasyParallel\ValueObject\EasyParallelConfig;
-use Symplify\PackageBuilder\Parameter\ParameterProvider;
-use Symplify\PackageBuilder\Php\TypeChecker;
-use Symplify\PackageBuilder\Reflection\PrivatesAccessor;
-use Symplify\PackageBuilder\Reflection\PrivatesCaller;
-use Symplify\PackageBuilder\Yaml\ParametersMerger;
-use Symplify\SmartFileSystem\FileSystemFilter;
-use Symplify\SmartFileSystem\FileSystemGuard;
-use Symplify\SmartFileSystem\Finder\FinderSanitizer;
-use Symplify\SmartFileSystem\Json\JsonFileSystem;
-use Symplify\SmartFileSystem\SmartFileSystem;
 
 return static function (RectorConfig $rectorConfig): void {
     // make use of https://github.com/symplify/easy-parallel
@@ -63,7 +62,9 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->bootstrapFiles([]);
     $rectorConfig->parallel(seconds: 120, maxNumberOfProcess: 16, jobSize: 20);
 
-    $rectorConfig->disableImportNames();
+    // to avoid autoimporting out of the box
+    $rectorConfig->importNames(false, false);
+
     $rectorConfig->importShortClasses();
     $rectorConfig->indent(' ', 4);
 
@@ -85,6 +86,12 @@ return static function (RectorConfig $rectorConfig): void {
             __DIR__ . '/../packages/BetterPhpDocParser/PhpDocInfo/PhpDocInfo.php',
             __DIR__ . '/../packages/Testing/PHPUnit',
             __DIR__ . '/../packages/BetterPhpDocParser/PhpDoc',
+
+            __DIR__ . '/../packages/PhpDocParser/NodeVisitor',
+            __DIR__ . '/../packages/PhpDocParser/PhpParser/SmartPhpParser.php',
+            __DIR__ . '/../packages/PhpDocParser/ValueObject',
+            __DIR__ . '/../packages/PhpDocParser/PhpDocParser/PhpDocNodeVisitor/CallablePhpDocNodeVisitor.php',
+
             __DIR__ . '/../packages/PHPStanStaticTypeMapper/Enum',
             __DIR__ . '/../packages/Caching/Cache.php',
             __DIR__ . '/../packages/NodeTypeResolver/PhpDocNodeVisitor/UnderscoreRenamePhpDocNodeVisitor.php',
@@ -106,8 +113,7 @@ return static function (RectorConfig $rectorConfig): void {
             __DIR__ . '/../rules/*/Enum/*',
         ]);
 
-    // parallel
-    $services->set(ParametersMerger::class);
+    $services->set(Filesystem::class);
 
     // use faster in-memory cache in CI.
     // CI always starts from scratch, therefore IO intensive caching is not worth it
@@ -119,7 +125,7 @@ return static function (RectorConfig $rectorConfig): void {
     $extensionConfigResolver = new ExtensionConfigResolver();
     $extensionConfigFiles = $extensionConfigResolver->provide();
     foreach ($extensionConfigFiles as $extensionConfigFile) {
-        $rectorConfig->import($extensionConfigFile->getRealPath());
+        $rectorConfig->import($extensionConfigFile);
     }
 
     // require only in dev
@@ -138,9 +144,7 @@ return static function (RectorConfig $rectorConfig): void {
             __DIR__ . '/../src/Enum',
             __DIR__ . '/../src/PhpParser/Node/CustomNode',
             __DIR__ . '/../src/PhpParser/ValueObject',
-            __DIR__ . '/../src/functions',
             __DIR__ . '/../src/constants.php',
-
         ]);
 
     $services->alias(Application::class, ConsoleApplication::class);
@@ -164,29 +168,19 @@ return static function (RectorConfig $rectorConfig): void {
     $services->set(Lexer::class)
         ->factory([service(PHPStanServicesFactory::class), 'createEmulativeLexer']);
 
-    // symplify/package-builder
-    $services->set(FileSystemGuard::class);
-    $services->set(PrivatesAccessor::class);
-    $services->set(PrivatesCaller::class);
-    $services->set(FinderSanitizer::class);
-    $services->set(FileSystemFilter::class);
-
     $services->set(ParameterProvider::class)
         ->arg('$container', service('service_container'));
-
-    $services->set(SmartFileSystem::class);
-    $services->set(JsonFileSystem::class);
 
     $services->set(InflectorFactory::class);
     $services->set(Inflector::class)
         ->factory([service(InflectorFactory::class), 'build']);
 
     $services->set(VersionParser::class);
-    $services->set(TypeChecker::class);
 
-    // phpdoc parser
-    $services->set(\PHPStan\PhpDocParser\Lexer\Lexer::class);
-    $services->alias(PhpDocParser::class, BetterPhpDocParser::class);
+    // console
+    $services->set(SymfonyStyleFactory::class);
+    $services->set(SymfonyStyle::class)
+        ->factory([service(SymfonyStyleFactory::class), 'create']);
 
     // cache
     $services->set(DependencyResolver::class)
@@ -218,4 +212,22 @@ return static function (RectorConfig $rectorConfig): void {
         ->factory([service(PHPStanServicesFactory::class), 'createDynamicSourceLocatorProvider']);
 
     $services->set(MissingInSetCommand::class);
+
+    // phpdoc parser
+    $services->set(SmartPhpParser::class)
+        ->factory([service(SmartPhpParserFactory::class), 'create']);
+
+    $services->set(ConstExprEvaluator::class);
+    $services->set(NodeFinder::class);
+
+    // phpdoc parser
+    $services->set(PhpDocParser::class);
+    $services->alias(PhpDocParser::class, BetterPhpDocParser::class);
+
+    $services->set(\PHPStan\PhpDocParser\Lexer\Lexer::class);
+    $services->set(TypeParser::class);
+    $services->set(ConstExprParser::class);
+
+    // console color diff
+    $services->set(Differ::class);
 };

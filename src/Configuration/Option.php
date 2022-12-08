@@ -6,7 +6,6 @@ namespace Rector\Core\Configuration;
 
 use Rector\Caching\Contract\ValueObject\Storage\CacheStorageInterface;
 use Rector\Caching\ValueObject\Storage\FileCacheStorage;
-use Symplify\Skipper\ValueObject\Option as SkipperOption;
 
 final class Option
 {
@@ -109,7 +108,7 @@ final class Option
      * @deprecated Use @see \Rector\Config\RectorConfig::skip() instead
      * @var string
      */
-    public const SKIP = SkipperOption::SKIP;
+    public const SKIP = 'skip';
 
     /**
      * @deprecated Use RectorConfig::fileExtensions() instead
@@ -165,20 +164,9 @@ final class Option
     public const NO_DIFFS = 'no-diffs';
 
     /**
-     * @deprecated This know-how should be mentioned in framework-specific documentation of the package instead.
-     * @var string
-     */
-    public const TEMPLATE_TYPE = 'template-type';
-
-    /**
      * @var string
      */
     public const AUTOLOAD_FILE_SHORT = 'a';
-
-    /**
-     * @var string
-     */
-    public const APPLY_AUTO_IMPORT_NAMES_ON_CHANGED_FILES_ONLY = 'apply_auto_import_names_on_changed_files_only';
 
     /**
      * @var string

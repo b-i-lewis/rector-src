@@ -6,7 +6,6 @@ namespace Rector\Tests\CodingStyle\Rector\Namespace_\ImportFullyQualifiedNamesRe
 
 use Iterator;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 /**
  * @see \Rector\PostRector\Rector\NameImportingPostRector
@@ -18,30 +17,21 @@ final class ImportFullyQualifiedNamesRectorTest extends AbstractRectorTestCase
      * @dataProvider provideDataFunction()
      * @dataProvider provideDataGeneric()
      */
-    public function test(SmartFileInfo $fileInfo): void
+    public function test(string $filePath): void
     {
-        $this->doTestFileInfo($fileInfo);
+        $this->doTestFile($filePath);
     }
 
-    /**
-     * @return Iterator<SmartFileInfo>
-     */
     public function provideData(): Iterator
     {
         return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
-    /**
-     * @return Iterator<SmartFileInfo>
-     */
     public function provideDataFunction(): Iterator
     {
         return $this->yieldFilesFromDirectory(__DIR__ . '/FixtureFunction');
     }
 
-    /**
-     * @return Iterator<SmartFileInfo>
-     */
     public function provideDataGeneric(): Iterator
     {
         return $this->yieldFilesFromDirectory(__DIR__ . '/FixtureGeneric');

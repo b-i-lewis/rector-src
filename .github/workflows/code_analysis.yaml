@@ -45,12 +45,21 @@ jobs:
                         name: 'Compatible PHPStan versions'
                         run: php bin/validate-phpstan-version.php
 
+                    -
+                        name: 'Detect Rules Missing in Set'
+                        run: bin/rector missing-in-set --ansi
+
                     # see https://github.com/rectorphp/rector-generator
                     -
                         name: 'Rector Generate From Recipe'
                         run: |
                             bin/rector init-recipe --ansi
                             bin/rector generate --ansi
+
+                    -
+                        name: 'Detect unused dependencies'
+                        # "default" format overrides default "github" in CI
+                        run: vendor/bin/composer-unused --ansi --output-format default
 
         name: ${{ matrix.actions.name }}
         runs-on: ubuntu-latest

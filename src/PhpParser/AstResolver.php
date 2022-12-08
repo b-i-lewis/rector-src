@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rector\Core\PhpParser;
 
+use Nette\Utils\FileSystem;
 use PhpParser\Node;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\FuncCall;
@@ -33,8 +34,7 @@ use Rector\Core\ValueObject\MethodName;
 use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\NodeScopeAndMetadataDecorator;
 use Rector\NodeTypeResolver\NodeTypeResolver;
-use Symplify\Astral\PhpParser\SmartPhpParser;
-use Symplify\SmartFileSystem\SmartFileInfo;
+use Rector\PhpDocParser\PhpParser\SmartPhpParser;
 
 /**
  * The nodes provided by this resolver is for read-only analysis only!
@@ -77,7 +77,7 @@ final class AstResolver
         }
 
         $classReflection = $this->reflectionProvider->getClass($className);
-        return $this->resolveClassFromClassReflection($classReflection, $className);
+        return $this->resolveClassFromClassReflection($classReflection);
     }
 
     public function resolveClassFromObjectType(
@@ -216,10 +216,9 @@ final class AstResolver
     }
 
     public function resolveClassFromClassReflection(
-        ClassReflection $classReflection,
-        string $className
+        ClassReflection $classReflection
     ): Trait_ | Class_ | Interface_ | Enum_ | null {
-        return $this->classLikeAstResolver->resolveClassFromClassReflection($classReflection, $className);
+        return $this->classLikeAstResolver->resolveClassFromClassReflection($classReflection);
     }
 
     /**
@@ -319,9 +318,7 @@ final class AstResolver
             return null;
         }
 
-        $smartFileInfo = new SmartFileInfo($fileName);
-        $file = new File($smartFileInfo, $smartFileInfo->getContents());
-
+        $file = new File($fileName, FileSystem::read($fileName));
         return $this->nodeScopeAndMetadataDecorator->decorateNodesFromFile($file, $stmts);
     }
 

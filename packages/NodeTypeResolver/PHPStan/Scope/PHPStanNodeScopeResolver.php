@@ -7,6 +7,7 @@ namespace Rector\NodeTypeResolver\PHPStan\Scope;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
+use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\AssignOp;
@@ -47,12 +48,11 @@ use Rector\Caching\FileSystem\DependencyResolver;
 use Rector\Core\Exception\ShouldNotHappenException;
 use Rector\Core\StaticReflection\SourceLocator\ParentAttributeSourceLocator;
 use Rector\Core\StaticReflection\SourceLocator\RenamedClassesSourceLocator;
+use Rector\Core\Util\Reflection\PrivatesAccessor;
 use Rector\Core\Util\StringUtils;
 use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\NodeTypeResolver\PHPStan\Scope\NodeVisitor\RemoveDeepChainMethodCallNodeVisitor;
-use Symplify\PackageBuilder\Reflection\PrivatesAccessor;
-use Symplify\SmartFileSystem\SmartFileInfo;
 use Webmozart\Assert\Assert;
 
 /**
@@ -93,7 +93,7 @@ final class PHPStanNodeScopeResolver
      */
     public function processNodes(
         array $stmts,
-        SmartFileInfo $smartFileInfo,
+        string $filePath,
         ?MutatingScope $formerMutatingScope = null
     ): array {
         $isScopeRefreshing = $formerMutatingScope instanceof MutatingScope;
@@ -106,13 +106,13 @@ final class PHPStanNodeScopeResolver
         Assert::allIsInstanceOf($stmts, Stmt::class);
         $this->removeDeepChainMethodCallNodes($stmts);
 
-        $scope = $formerMutatingScope ?? $this->scopeFactory->createFromFile($smartFileInfo);
+        $scope = $formerMutatingScope ?? $this->scopeFactory->createFromFile($filePath);
 
         // skip chain method calls, performance issue: https://github.com/phpstan/phpstan/issues/254
         $nodeCallback = function (Node $node, MutatingScope $mutatingScope) use (
             &$nodeCallback,
             $isScopeRefreshing,
-            $smartFileInfo
+            $filePath
         ): void {
             if ((
                 $node instanceof Expression ||
@@ -139,6 +139,13 @@ final class PHPStanNodeScopeResolver
             if ($node instanceof Foreach_) {
                 // decorate value as well
                 $node->valueVar->setAttribute(AttributeKey::SCOPE, $mutatingScope);
+                if ($node->valueVar instanceof Array_) {
+                    $this->processArray($node->valueVar, $mutatingScope);
+                }
+            }
+
+            if ($node instanceof Array_) {
+                $this->processArray($node, $mutatingScope);
             }
 
             if ($node instanceof Property) {
@@ -150,7 +157,7 @@ final class PHPStanNodeScopeResolver
             }
 
             if ($node instanceof TryCatch) {
-                $this->processTryCatch($node, $smartFileInfo, $mutatingScope);
+                $this->processTryCatch($node, $filePath, $mutatingScope);
             }
 
             if ($node instanceof ArrayItem) {
@@ -211,13 +218,22 @@ final class PHPStanNodeScopeResolver
 
             // special case for unreachable nodes
             if ($node instanceof UnreachableStatementNode) {
-                $this->processUnreachableStatementNode($node, $smartFileInfo, $mutatingScope);
+                $this->processUnreachableStatementNode($node, $filePath, $mutatingScope);
             } else {
                 $node->setAttribute(AttributeKey::SCOPE, $mutatingScope);
             }
         };
 
-        return $this->processNodesWithDependentFiles($smartFileInfo, $stmts, $scope, $nodeCallback);
+        return $this->processNodesWithDependentFiles($filePath, $stmts, $scope, $nodeCallback);
+    }
+
+    private function processArray(Array_ $array, MutatingScope $mutatingScope): void
+    {
+        foreach ($array->items as $arrayItem) {
+            if ($arrayItem instanceof ArrayItem) {
+                $arrayItem->setAttribute(AttributeKey::SCOPE, $mutatingScope);
+            }
+        }
     }
 
     private function processArrayItem(ArrayItem $arrayItem, MutatingScope $mutatingScope): void
@@ -248,11 +264,8 @@ final class PHPStanNodeScopeResolver
         }
     }
 
-    private function processTryCatch(
-        TryCatch $tryCatch,
-        SmartFileInfo $smartFileInfo,
-        MutatingScope $mutatingScope
-    ): void {
+    private function processTryCatch(TryCatch $tryCatch, string $filePath, MutatingScope $mutatingScope): void
+    {
         foreach ($tryCatch->catches as $catch) {
             $varName = $catch->var instanceof Variable
                 ? $this->nodeNameResolver->getName($catch->var)
@@ -263,7 +276,7 @@ final class PHPStanNodeScopeResolver
             );
 
             $catchMutatingScope = $mutatingScope->enterCatchType($type, $varName);
-            $this->processNodes($catch->stmts, $smartFileInfo, $catchMutatingScope);
+            $this->processNodes($catch->stmts, $filePath, $catchMutatingScope);
         }
 
         if ($tryCatch->finally instanceof Finally_) {
@@ -273,20 +286,20 @@ final class PHPStanNodeScopeResolver
 
     private function processUnreachableStatementNode(
         UnreachableStatementNode $unreachableStatementNode,
-        SmartFileInfo $smartFileInfo,
+        string $filePath,
         MutatingScope $mutatingScope
     ): void {
         $originalStmt = $unreachableStatementNode->getOriginalStatement();
         $originalStmt->setAttribute(AttributeKey::IS_UNREACHABLE, true);
         $originalStmt->setAttribute(AttributeKey::SCOPE, $mutatingScope);
 
-        $this->processNodes([$originalStmt], $smartFileInfo, $mutatingScope);
+        $this->processNodes([$originalStmt], $filePath, $mutatingScope);
 
         $nextNode = $originalStmt->getAttribute(AttributeKey::NEXT_NODE);
         while ($nextNode instanceof Stmt) {
             $nextNode->setAttribute(AttributeKey::IS_UNREACHABLE, true);
 
-            $this->processNodes([$nextNode], $smartFileInfo, $mutatingScope);
+            $this->processNodes([$nextNode], $filePath, $mutatingScope);
             $nextNode = $nextNode->getAttribute(AttributeKey::NEXT_NODE);
         }
     }
@@ -329,13 +342,13 @@ final class PHPStanNodeScopeResolver
      * @return Stmt[]
      */
     private function processNodesWithDependentFiles(
-        SmartFileInfo $smartFileInfo,
+        string $filePath,
         array $stmts,
         MutatingScope $mutatingScope,
         callable $nodeCallback
     ): array {
         $this->nodeScopeResolver->processNodes($stmts, $mutatingScope, $nodeCallback);
-        $this->resolveAndSaveDependentFiles($stmts, $mutatingScope, $smartFileInfo);
+        $this->resolveAndSaveDependentFiles($stmts, $mutatingScope, $filePath);
 
         return $stmts;
     }
@@ -394,7 +407,7 @@ final class PHPStanNodeScopeResolver
     private function resolveAndSaveDependentFiles(
         array $stmts,
         MutatingScope $mutatingScope,
-        SmartFileInfo $smartFileInfo
+        string $filePath
     ): void {
         $dependentFiles = [];
         foreach ($stmts as $stmt) {
@@ -406,7 +419,7 @@ final class PHPStanNodeScopeResolver
             }
         }
 
-        $this->changedFilesDetector->addFileWithDependencies($smartFileInfo, $dependentFiles);
+        $this->changedFilesDetector->addFileWithDependencies($filePath, $dependentFiles);
     }
 
     /**

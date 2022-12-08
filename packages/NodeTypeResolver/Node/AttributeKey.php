@@ -158,4 +158,15 @@ final class AttributeKey
      * @var string
      */
     public const PHP_ATTRIBUTE_NAME = 'php_attribute_name';
+
+    /**
+     * Helper attribute to reprint raw value of int/float/string
+     * @var string
+     */
+    public const REPRINT_RAW_VALUE = 'reprint_raw_value';
+
+    /**
+     * @var string
+     */
+    public const EXTRA_USE_IMPORT = 'extra_use_import';
 }

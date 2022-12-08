@@ -11,7 +11,6 @@ use Rector\Caching\Contract\ValueObject\Storage\CacheStorageInterface;
 use Rector\Caching\ValueObject\CacheFilePaths;
 use Rector\Caching\ValueObject\CacheItem;
 use Rector\Core\Exception\Cache\CachingException;
-use Symplify\SmartFileSystem\SmartFileSystem;
 
 /**
  * Inspired by https://github.com/phpstan/phpstan-src/blob/1e7ceae933f07e5a250b61ed94799e6c2ea8daa2/src/Cache/FileCacheStorage.php
@@ -21,7 +20,7 @@ final class FileCacheStorage implements CacheStorageInterface
 {
     public function __construct(
         private string $directory,
-        private SmartFileSystem $smartFileSystem
+        private \Symfony\Component\Filesystem\Filesystem $filesystem
     ) {
     }
 
@@ -51,8 +50,8 @@ final class FileCacheStorage implements CacheStorageInterface
     public function save(string $key, string $variableKey, mixed $data): void
     {
         $cacheFilePaths = $this->getCacheFilePaths($key);
-        $this->smartFileSystem->mkdir($cacheFilePaths->getFirstDirectory());
-        $this->smartFileSystem->mkdir($cacheFilePaths->getSecondDirectory());
+        $this->filesystem-> mkdir($cacheFilePaths->getFirstDirectory());
+        $this->filesystem->mkdir($cacheFilePaths->getSecondDirectory());
 
         $path = $cacheFilePaths->getFilePath();
 
@@ -92,22 +91,22 @@ final class FileCacheStorage implements CacheStorageInterface
 
     public function clear(): void
     {
-        $this->smartFileSystem->remove($this->directory);
+        $this->filesystem->remove($this->directory);
     }
 
     private function processRemoveCacheFilePath(CacheFilePaths $cacheFilePaths): void
     {
         $filePath = $cacheFilePaths->getFilePath();
-        if (! $this->smartFileSystem->exists($filePath)) {
+        if (! $this->filesystem->exists($filePath)) {
             return;
         }
 
-        $this->smartFileSystem->remove($filePath);
+        $this->filesystem->remove($filePath);
     }
 
     private function processRemoveEmptyDirectory(string $directory): void
     {
-        if (! $this->smartFileSystem->exists($directory)) {
+        if (! $this->filesystem->exists($directory)) {
             return;
         }
 
@@ -115,7 +114,7 @@ final class FileCacheStorage implements CacheStorageInterface
             return;
         }
 
-        $this->smartFileSystem->remove($directory);
+        $this->filesystem->remove($directory);
     }
 
     private function isNotEmptyDirectory(string $directory): bool

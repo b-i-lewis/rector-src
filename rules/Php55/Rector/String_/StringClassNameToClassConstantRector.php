@@ -6,17 +6,20 @@ namespace Rector\Php55\Rector\String_;
 
 use PhpParser\Node;
 use PhpParser\Node\Arg;
+use PhpParser\Node\Expr\BinaryOp\Concat;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\FuncCall;
+use PhpParser\Node\Name;
 use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\ClassConst;
+use PHPStan\Reflection\ReflectionProvider;
 use Rector\Core\Contract\Rector\AllowEmptyConfigurableRectorInterface;
 use Rector\Core\Rector\AbstractRector;
 use Rector\Core\ValueObject\PhpVersionFeature;
+use Rector\Naming\Naming\AliasNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\VersionBonding\Contract\MinPhpVersionInterface;
-use Symplify\PackageBuilder\Reflection\ClassLikeExistenceChecker;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\ConfiguredCodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 use Webmozart\Assert\Assert;
@@ -31,14 +34,11 @@ final class StringClassNameToClassConstantRector extends AbstractRector implemen
     /**
      * @var string[]
      */
-    private array $classesToSkip = [
-        // can be string
-        'Error',
-        'Exception',
-    ];
+    private array $classesToSkip = [];
 
     public function __construct(
-        private readonly ClassLikeExistenceChecker $classLikeExistenceChecker
+        private readonly ReflectionProvider $reflectionProvider,
+        private readonly AliasNameResolver $aliasNameResolver
     ) {
     }
 
@@ -105,7 +105,25 @@ CODE_SAMPLE
         }
 
         $fullyQualified = new FullyQualified($classLikeName);
-        return new ClassConstFetch($fullyQualified, 'class');
+
+        $name = clone $fullyQualified;
+        $name->setAttribute(AttributeKey::PARENT_NODE, $node->getAttribute(AttributeKey::PARENT_NODE));
+
+        $aliasName = $this->aliasNameResolver->resolveByName($name);
+
+        $fullyQualifiedOrAliasName = is_string($aliasName)
+            ? new Name($aliasName)
+            : $fullyQualified;
+
+        if ($classLikeName !== $node->value) {
+            $preSlashCount = strlen($node->value) - strlen($classLikeName);
+            $preSlash = str_repeat('\\', $preSlashCount);
+            $string = new String_($preSlash);
+
+            return new Concat($string, new ClassConstFetch($fullyQualifiedOrAliasName, 'class'));
+        }
+
+        return new ClassConstFetch($fullyQualifiedOrAliasName, 'class');
     }
 
     /**
@@ -140,7 +158,22 @@ CODE_SAMPLE
 
     private function shouldSkip(string $classLikeName, String_ $string): bool
     {
-        if (! $this->classLikeExistenceChecker->doesClassLikeInsensitiveExists($classLikeName)) {
+        if (! $this->reflectionProvider->hasClass($classLikeName)) {
+            return true;
+        }
+
+        $classReflection = $this->reflectionProvider->getClass($classLikeName);
+        if ($classReflection->getName() !== $classLikeName) {
+            return true;
+        }
+
+        // skip short class names, mostly invalid use of strings
+        if (! str_contains($classLikeName, '\\')) {
+            return true;
+        }
+
+        // possibly string
+        if (ctype_lower($classLikeName[0])) {
             return true;
         }
 

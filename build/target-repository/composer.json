@@ -7,7 +7,7 @@
     ],
     "require": {
         "php": "^7.2|^8.0",
-        "phpstan/phpstan": "^1.8.2"
+        "phpstan/phpstan": "^1.9.2"
     },
     "autoload": {
         "files": [
@@ -20,13 +20,11 @@
         }
     },
     "conflict": {
-        "phpstan/phpdoc-parser": "<1.7",
         "rector/rector-phpunit": "*",
         "rector/rector-symfony": "*",
         "rector/rector-doctrine": "*",
-        "rector/rector-cakephp": "*",
-        "rector/rector-laravel": "*",
-        "rector/rector-phpoffice": "*"
+        "rector/rector-php-parser": "*",
+        "rector/rector-downgrade-php": "*"
     },
     "minimum-stability": "dev",
     "prefer-stable": true

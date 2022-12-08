@@ -6,20 +6,19 @@ namespace Rector\Tests\DeadCode\Rector\Expression\RemoveDeadStmtRector;
 
 use Iterator;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class RemoveDeadStmtRectorTest extends AbstractRectorTestCase
 {
     /**
      * @dataProvider provideData()
      */
-    public function test(SmartFileInfo $fileInfo): void
+    public function test(string $filePath): void
     {
-        $this->doTestFileInfo($fileInfo);
+        $this->doTestFile($filePath);
     }
 
     /**
-     * @return Iterator<SmartFileInfo>
+     * @return Iterator<array<string>>
      */
     public function provideData(): Iterator
     {
@@ -29,14 +28,11 @@ final class RemoveDeadStmtRectorTest extends AbstractRectorTestCase
     /**
      * @dataProvider provideDataForTestKeepComments()
      */
-    public function testKeepComments(SmartFileInfo $fileInfo): void
+    public function testKeepComments(string $filePath): void
     {
-        $this->doTestFileInfo($fileInfo);
+        $this->doTestFile($filePath);
     }
 
-    /**
-     * @return Iterator<mixed, SmartFileInfo>
-     */
     public function provideDataForTestKeepComments(): Iterator
     {
         return $this->yieldFilesFromDirectory(__DIR__ . '/FixtureRemovedComments');

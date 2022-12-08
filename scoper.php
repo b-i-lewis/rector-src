@@ -16,7 +16,7 @@ $timestamp = $dateTime->format('Ym');
 
 // @see https://github.com/humbug/php-scoper/blob/master/docs/further-reading.md
 $polyfillsBootstraps = array_map(
-    static fn (SplFileInfo $fileInfo) => $fileInfo->getPathname(),
+    static fn (SplFileInfo $fileInfo): string => $fileInfo->getPathname(),
     iterator_to_array(
         Finder::create()
             ->files()
@@ -27,7 +27,7 @@ $polyfillsBootstraps = array_map(
 );
 
 $polyfillsStubs = array_map(
-    static fn (SplFileInfo $fileInfo) => $fileInfo->getPathname(),
+    static fn (SplFileInfo $fileInfo): string => $fileInfo->getPathname(),
     iterator_to_array(
         Finder::create()
             ->files()
@@ -61,13 +61,8 @@ return [
     ],
 
     // expose
-    'expose-classes' => [
-        'Normalizer',
-        // used by public API
-        'Symplify\SmartFileSystem\SmartFileInfo',
-        'Symplify\ComposerJsonManipulator\ValueObject\ComposerJson',
-    ],
-    'expose-functions' => ['u', 'b', 's', 'trigger_deprecation', 'dump_with_depth', 'dn', 'dump_node', 'print_node'],
+    'expose-classes' => ['Normalizer'],
+    'expose-functions' => ['u', 'b', 's', 'trigger_deprecation'],
     'expose-constants' => ['__RECTOR_RUNNING__', '#^SYMFONY\_[\p{L}_]+$#'],
 
     'patchers' => [
@@ -77,6 +72,16 @@ return [
             'use PhpParser;',
             $content
         ),
+
+        // fix symfony deprecation reports, @see https://github.com/rectorphp/rector/issues/7434
+        static function (string $filePath, string $prefix, string $content): string {
+            if (! \str_ends_with($filePath, 'vendor/symfony/contracts/Deprecation/function.php')) {
+                return $content;
+            }
+
+            // comment out
+            return str_replace('@\trigger_error', '// @\trigger_error', $content);
+        },
 
         static function (string $filePath, string $prefix, string $content): string {
             if (! \str_ends_with($filePath, 'src/Application/VersionResolver.php')) {

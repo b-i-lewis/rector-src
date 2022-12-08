@@ -24,7 +24,7 @@ use Rector\Core\PhpParser\Node\BetterNodeFinder;
 use Rector\Core\PhpParser\Node\Value\ValueResolver;
 use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Symplify\Astral\NodeTraverser\SimpleCallableNodeTraverser;
+use Rector\PhpDocParser\NodeTraverser\SimpleCallableNodeTraverser;
 
 final class ParamAnalyzer
 {
@@ -147,6 +147,10 @@ final class ParamAnalyzer
     private function isUsedAsArg(Node $node, Param $param): bool
     {
         if ($node instanceof New_ || $node instanceof CallLike) {
+            if ($node->isFirstClassCallable()) {
+                return false;
+            }
+
             foreach ($node->getArgs() as $arg) {
                 if ($this->nodeComparator->areNodesEqual($param->var, $arg->value)) {
                     return true;

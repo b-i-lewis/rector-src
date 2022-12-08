@@ -15,7 +15,7 @@ use PhpParser\Node\Stmt\Foreach_;
 use Rector\Core\PhpParser\Comparing\NodeComparator;
 use Rector\Core\PhpParser\Node\BetterNodeFinder;
 use Rector\NodeNameResolver\NodeNameResolver;
-use Symplify\Astral\NodeTraverser\SimpleCallableNodeTraverser;
+use Rector\PhpDocParser\NodeTraverser\SimpleCallableNodeTraverser;
 
 final class ForeachAnalyzer
 {
@@ -24,7 +24,8 @@ final class ForeachAnalyzer
         private readonly ForAnalyzer $forAnalyzer,
         private readonly NodeNameResolver $nodeNameResolver,
         private readonly SimpleCallableNodeTraverser $simpleCallableNodeTraverser,
-        private readonly BetterNodeFinder $betterNodeFinder
+        private readonly BetterNodeFinder $betterNodeFinder,
+        private readonly VariableNameUsedNextAnalyzer $variableNameUsedNextAnalyzer
     ) {
     }
 
@@ -119,14 +120,13 @@ final class ForeachAnalyzer
             return true;
         }
 
-        return (bool) $this->betterNodeFinder->findFirstNext($foreach, function (Node $node) use (
-            $singularValueVarName
-        ): bool {
-            if (! $node instanceof Variable) {
-                return false;
-            }
+        if ($this->variableNameUsedNextAnalyzer->isValueVarUsedNext($foreach, $singularValueVarName)) {
+            return true;
+        }
 
-            return $this->nodeNameResolver->isName($node, $singularValueVarName);
-        });
+        return $this->variableNameUsedNextAnalyzer->isValueVarUsedNext(
+            $foreach,
+            (string) $this->nodeNameResolver->getName($foreach->valueVar)
+        );
     }
 }

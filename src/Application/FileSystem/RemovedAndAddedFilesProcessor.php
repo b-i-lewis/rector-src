@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Rector\Core\Application\FileSystem;
 
 use Rector\Core\Contract\Console\OutputStyleInterface;
+use Rector\Core\FileSystem\FilePathHelper;
 use Rector\Core\PhpParser\Printer\NodesWithFileDestinationPrinter;
 use Rector\Core\ValueObject\Configuration;
-use Symplify\SmartFileSystem\SmartFileSystem;
+use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * Adds and removes scheduled file
@@ -15,10 +16,11 @@ use Symplify\SmartFileSystem\SmartFileSystem;
 final class RemovedAndAddedFilesProcessor
 {
     public function __construct(
-        private readonly SmartFileSystem $smartFileSystem,
+        private readonly Filesystem $filesystem,
         private readonly NodesWithFileDestinationPrinter $nodesWithFileDestinationPrinter,
         private readonly RemovedAndAddedFilesCollector $removedAndAddedFilesCollector,
-        private readonly OutputStyleInterface $rectorOutputStyle
+        private readonly OutputStyleInterface $rectorOutputStyle,
+        private readonly FilePathHelper $filePathHelper
     ) {
     }
 
@@ -33,16 +35,19 @@ final class RemovedAndAddedFilesProcessor
 
     private function processDeletedFiles(Configuration $configuration): void
     {
-        foreach ($this->removedAndAddedFilesCollector->getRemovedFiles() as $removedFile) {
-            $relativePath = $removedFile->getRelativeFilePathFromDirectory(getcwd());
+        foreach ($this->removedAndAddedFilesCollector->getRemovedFiles() as $removedFilePath) {
+            $removedFileRelativePath = $this->filePathHelper->relativePath($removedFilePath);
+
+            // @todo file helper
+            //            $removedFileRelativePath = $removedFile->getRelativeFilePathFromDirectory(getcwd());
 
             if ($configuration->isDryRun()) {
-                $message = sprintf('File "%s" will be removed', $relativePath);
+                $message = sprintf('File "%s" will be removed', $removedFileRelativePath);
                 $this->rectorOutputStyle->warning($message);
             } else {
-                $message = sprintf('File "%s" was removed', $relativePath);
+                $message = sprintf('File "%s" was removed', $removedFileRelativePath);
                 $this->rectorOutputStyle->warning($message);
-                $this->smartFileSystem->remove($removedFile->getPathname());
+                $this->filesystem->remove($removedFilePath);
             }
         }
     }
@@ -54,7 +59,7 @@ final class RemovedAndAddedFilesProcessor
                 $message = sprintf('File "%s" will be added', $addedFileWithContent->getFilePath());
                 $this->rectorOutputStyle->note($message);
             } else {
-                $this->smartFileSystem->dumpFile(
+                $this->filesystem->dumpFile(
                     $addedFileWithContent->getFilePath(),
                     $addedFileWithContent->getFileContent()
                 );
@@ -75,7 +80,7 @@ final class RemovedAndAddedFilesProcessor
                 $message = sprintf('File "%s" will be added', $addedFileWithNode->getFilePath());
                 $this->rectorOutputStyle->note($message);
             } else {
-                $this->smartFileSystem->dumpFile($addedFileWithNode->getFilePath(), $fileContent);
+                $this->filesystem->dumpFile($addedFileWithNode->getFilePath(), $fileContent);
                 $message = sprintf('File "%s" was added', $addedFileWithNode->getFilePath());
                 $this->rectorOutputStyle->note($message);
             }
@@ -95,8 +100,8 @@ final class RemovedAndAddedFilesProcessor
                 );
                 $this->rectorOutputStyle->note($message);
             } else {
-                $this->smartFileSystem->dumpFile($movedFile->getNewFilePath(), $fileContent);
-                $this->smartFileSystem->remove($movedFile->getFilePath());
+                $this->filesystem->dumpFile($movedFile->getNewFilePath(), $fileContent);
+                $this->filesystem->remove($movedFile->getFilePath());
 
                 $message = sprintf(
                     'File "%s" was moved to "%s"',

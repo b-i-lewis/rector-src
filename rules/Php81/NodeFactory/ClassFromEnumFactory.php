@@ -25,20 +25,31 @@ final class ClassFromEnumFactory
     {
         $shortClassName = $this->nodeNameResolver->getShortName($enum);
 
-        $classConsts = [];
+        $classStmts = [];
+
         foreach ($enum->stmts as $stmt) {
             if (! $stmt instanceof EnumCase) {
+                $classStmts[] = $stmt;
                 continue;
             }
 
             $constValue = $this->createConstValue($stmt);
-
-            $classConsts[] = new ClassConst([new Const_($stmt->name, $constValue)], Visibility::PUBLIC);
+            $classStmts[] = new ClassConst([new Const_($stmt->name, $constValue)], Visibility::PUBLIC, [
+                'startLine' => $stmt->getStartLine(),
+                'endLine' => $stmt->getEndLine(),
+            ]);
         }
 
-        $class = new Class_($shortClassName, [
-            'stmts' => $classConsts,
-        ]);
+        $class = new Class_(
+            $shortClassName,
+            [
+                'stmts' => $classStmts,
+            ],
+            [
+                'startLine' => $enum->getStartLine(),
+                'endLine' => $enum->getEndLine(),
+            ]
+        );
 
         $class->namespacedName = $enum->namespacedName;
 

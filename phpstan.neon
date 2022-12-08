@@ -71,6 +71,7 @@ parameters:
                 - rules/Php70/EregToPcreTransformer.php
                 - packages/NodeTypeResolver/NodeTypeResolver.php
                 - rules/Renaming/NodeManipulator/ClassRenamer.php
+                - packages/NodeTypeResolver/PHPStan/Scope/PHPStanNodeScopeResolver.php
 
         - "#^Cognitive complexity for \"Rector\\\\Php70\\\\EregToPcreTransformer\\:\\:(.*?)\" is (.*?), keep it under 10$#"
         - '#Cognitive complexity for "Rector\\Core\\PhpParser\\Node\\Value\\ValueResolver\:\:getValue\(\)" is \d+, keep it under 10#'
@@ -105,10 +106,6 @@ parameters:
         - '#Method (.*?) should return array<PhpParser\\Node\\(.*?)\> but returns array<PhpParser\\Node\>#'
 
         - '#Access to an undefined property PhpParser\\Node\\Expr\\Error\|PhpParser\\Node\\Expr\\Variable\:\:\$name#'
-
-        -
-            message: '#Call to function is_string\(\) with float will always evaluate to false#'
-            path: src/PhpParser/Printer/BetterStandardPrinter.php
 
         - '#PhpParser\\Node\\Expr\\Error\|PhpParser\\Node\\Expr\\Variable given#'
 
@@ -145,12 +142,8 @@ parameters:
         - '#Access to an undefined property PhpParser\\Node\\FunctionLike\|PhpParser\\Node\\Stmt\\If_\:\:\$stmts#'
 
         - '#Cognitive complexity for "Rector\\CodeQuality\\Rector\\Isset_\\IssetOnPropertyObjectToPropertyExistsRector\:\:refactor\(\)" is \d+, keep it under 10#'
-        - '#Cognitive complexity for "Rector\\DogFood\\Rector\\Closure\\UpgradeRectorConfigRector\:\:refactor\(\)" is \d+, keep it under 10#'
 
         - '#(.*?) class\-string, string given#'
-
-        # PHP 7_4 literal syntax
-        - '#Property PhpParser\\Node\\Scalar\\DNumber\:\:\$value \(float\|int\) does not accept string#'
 
         -
             message: '#Array destruct is not allowed\. Use value object to pass data instead#'
@@ -164,7 +157,6 @@ parameters:
 
         - '#Cognitive complexity for "Rector\\BetterPhpDocParser\\PhpDocParser\\DoctrineAnnotationDecorator\:\:mergeNestedDoctrineAnnotations\(\)" is \d+, keep it under 10#'
 
-        - '#Cognitive complexity for "Rector\\BetterPhpDocParser\\Printer\\PhpDocInfoPrinter\:\:printDocChildNode\(\)" is \d+, keep it under 10#'
         - '#Cognitive complexity for "Rector\\NodeTypeResolver\\NodeTypeResolver\:\:getType\(\)" is \d+, keep it under 10#'
 
         -
@@ -184,23 +176,12 @@ parameters:
             paths:
                 - src/Rector/AbstractRector.php
 
-        - '#Cannot call method getSmartFileInfo\(\) on Rector\\Core\\ValueObject\\Application\\File\|null#'
-
-        -
-            message: '#Function "function_exists\(\)" cannot be used/left in the code#'
-            paths:
-                 - src/functions/node_helper.php
-
         - '#Method Rector\\BetterPhpDocParser\\PhpDocParser\\BetterPhpDocParser\:\:parseChildAndStoreItsPositions\(\) should return PHPStan\\PhpDocParser\\Ast\\PhpDoc\\PhpDocTagNode\|PHPStan\\PhpDocParser\\Ast\\PhpDoc\\PhpDocTextNode but returns PHPStan\\PhpDocParser\\Ast\\PhpDoc\\PhpDocChildNode#'
 
         # deserves better architecture
         -
             message: '#Do not use chained method calls#'
             path: packages/BetterPhpDocParser/Printer/PhpDocInfoPrinter.php
-
-        -
-            message: '#Function "dump_node\(\)" cannot be used/left in the code#'
-            path: src/functions/node_helper.php
 
         - '#expects class\-string<TNode of PHPStan\\PhpDocParser\\Ast\\Node\>, string given#'
         # weird generics
@@ -281,22 +262,11 @@ parameters:
         # many internal cases
         - '#Calling (.*?) is not covered by backward compatibility promise\. The method might change in a minor PHPStan version#'
 
-        # generated content - not reliable values
-        -
-            message: '#Offset (.*?) on array(.*?) on left side of \?\? always exists and is not nullable#'
-            paths:
-                - packages/NodeTypeResolver/DependencyInjection/PHPStanServicesFactory.php
-
         -
             path: src/Bootstrap/RectorConfigsResolver.php
             message: '#Method Rector\\Core\\Bootstrap\\RectorConfigsResolver\:\:resolveFromInput\(\) should return string\|null but returns string\|false#'
 
         - '#Cognitive complexity for "Rector\\Core\\NodeManipulator\\ClassMethodAssignManipulator\:\:collectReferenceVariableNames\(\)" is 13, keep it under 10#'
-
-        # on purpose to make use of worker paralle pattern
-        -
-            message: '#Instead of abstract class, use specific service with composition#'
-            path: src/Console/Command/AbstractProcessCommand.php
 
         # known value object, nullable due to typed property
         -
@@ -338,11 +308,6 @@ parameters:
         - '#Parameter \#1 \$tokenIterator \(Rector\\BetterPhpDocParser\\ValueObject\\Parser\\BetterTokenIterator\) of method Rector\\BetterPhpDocParser\\PhpDocParser\\BetterPhpDocParser\:\:parseTagValue\(\) should be contravariant with parameter \$tokens \(PHPStan\\PhpDocParser\\Parser\\TokenIterator\) of method PHPStan\\PhpDocParser\\Parser\\PhpDocParser\:\:parseTagValue\(\)#'
         - '#Parameter \#1 \$nodes \(array<PhpParser\\Node\\Stmt\>\) of method Rector\\PostRector\\Rector\\(.*?)\:\:beforeTraverse\(\) should be contravariant with parameter \$nodes \(array<PhpParser\\Node\>\) of method PhpParser\\NodeVisitorAbstract\:\:beforeTraverse\(\)#'
 
-        # property changed else-where
-        -
-            message: '#If condition is always false#'
-            path: rules/TypeDeclaration/Rector/FunctionLike/ParamTypeDeclarationRector.php
-
         # on purpose, allows empty tokens
         - '#Rector\\BetterPhpDocParser\\ValueObject\\Parser\\BetterTokenIterator\:\:__construct\(\) does not call parent constructor from PHPStan\\PhpDocParser\\Parser\\TokenIterator#'
         - '#Rector\\Comments\\NodeTraverser\\CommentRemovingNodeTraverser\:\:__construct\(\) does not call parent constructor from PhpParser\\NodeTraverser#'
@@ -360,7 +325,6 @@ parameters:
             paths:
                 - src/ValueObjectFactory/ProcessResultFactory.php
                 - src/*/*Processor.php
-                - rules/Composer/Application/FileProcessor/ComposerFileProcessor.php
                 - src/Contract/Processor/FileProcessorInterface.php
                 - packages/BetterPhpDocParser/ValueObject/Parser/BetterTokenIterator.php
                 # reported only in non-CI, for some reason; keep it there even if it's reported as fixed error
@@ -371,7 +335,6 @@ parameters:
 
         # complex detection
         - '#Cognitive complexity for "Rector\\Core\\DependencyInjection\\Collector\\ConfigureCallValuesCollector\:\:addConfigureCallValues\(\)" is \d+, keep it under 10#'
-        - '#Cognitive complexity for "Rector\\TypeDeclaration\\Rector\\FunctionLike\\ParamTypeDeclarationRector\:\:refactorParam\(\)" is 11, keep it under 10#'
 
         # return bool on change
         - '#Method "(change|remove)(.*?)" returns bool type, so the name should start with is/has/was#'
@@ -397,28 +360,19 @@ parameters:
                 - rules/EarlyReturn/Rector/If_/ChangeNestedIfsToEarlyReturnRector.php
                 - rules/Php70/EregToPcreTransformer.php
                 - rules/CodeQuality/Rector/PropertyFetch/ExplicitMethodCallOverMagicGetSetRector.php
-                - src/Kernel/RectorKernel.php
                 - rules/Php72/Rector/Assign/ReplaceEachAssignmentWithKeyCurrentRector.php
                 - rules/PSR4/Rector/FileWithoutNamespace/NormalizeNamespaceByPSR4ComposerAutoloadRector.php
 
         - '#Method Rector\\Core\\Application\\ApplicationFileProcessor\:\:runParallel\(\) should return array\{system_errors\: array<Rector\\Core\\ValueObject\\Error\\SystemError\>, file_diffs\: array<Rector\\Core\\ValueObject\\Reporting\\FileDiff\>\} but returns array#'
-
-        # Configuration value object, useful
-        -
-            message: '#Named arguments do not add any value here\. Use normal arguments in the same order#'
-            paths:
-                - tests/Application/ApplicationFileProcessor/ApplicationFileProcessorTest.php
 
         # impossible to validate json string is a class-string
         - '#Parameter \#1 \$rectorClass of class Rector\\ChangesReporting\\ValueObject\\RectorWithLineChange constructor expects class\-string<Rector\\Core\\Contract\\Rector\\RectorInterface\>\|Rector\\Core\\Contract\\Rector\\RectorInterface, string given#'
 
         -
             message: '#Only booleans are allowed in an if condition, array\|null given#'
-            path: rules/Naming/Naming/PropertyNaming.php
-
-        -
-            path: src/Bootstrap/ExtensionConfigResolver.php
-            message: '#Offset (.*?)includes(.*?) always exists and is not nullable#'
+            paths:
+                - rules/Naming/Naming/PropertyNaming.php
+                - src/DependencyInjection/CompilerPass/AutowireArrayParameterCompilerPass.php
 
         # mapper re-use
         - '#Parameter \#1 \$type of method Rector\\PHPStanStaticTypeMapper\\TypeMapper\\ObjectWithoutClassTypeMapper\:\:mapToPhpParserNode\(\) expects PHPStan\\Type\\ObjectWithoutClassType, PHPStan\\Type\\Accessory\\Has(Property|Method)Type given#'
@@ -432,7 +386,7 @@ parameters:
         - '#Callable callable\(PHPStan\\Type\\Type\)\: PHPStan\\Type\\Type invoked with 2 parameters, 1 required#'
 
         # PHPStan 1.4.7
-        - '#Call to static method Webmozart\\Assert\\Assert\:\:allIsAOf|isAOf\(\) with .* will always evaluate to true#'
+        - '#Call to static method Webmozart\\Assert\\Assert\:\:allIsAOf|isAOf|assertInstanceOf\(\) with .* will always evaluate to true#'
 
         -
             message: '#Make callable type explicit#'
@@ -534,7 +488,13 @@ parameters:
                 - src/Bootstrap/ExtensionConfigResolver.php
                 # for config class reflection
                 - packages/NodeTypeResolver/DependencyInjection/PHPStanServicesFactory.php
+                - src/DependencyInjection/CompilerPass/AutowireArrayParameterCompilerPass.php
+                - src/DependencyInjection/Skipper/ParameterSkipper.php
+                - src/DependencyInjection/DefinitionFinder.php
 
+        -
+            message: '#Function "interface_exists\(\)" cannot be used/left in the code\: use ReflectionProvider\->has\*\(\) instead#'
+            path: src/DependencyInjection/Skipper/ParameterSkipper.php
 
         # use of internal phpstan classes
         -
@@ -557,22 +517,13 @@ parameters:
             message: '#Instead of "Symfony\\Component\\Finder\\SplFileInfo" class/interface use "Symplify\\SmartFileSystem\\SmartFileInfo"#'
             path: src/FileSystem/FilesFinder.php #113
 
-        # format specifiers definition rule
-        -
-            message: '#Modifier "%s" is not matching passed variable type "array<int, string>"\. The "string" type is expected \- see https\://dibiphp\.com/en/documentation\#toc\-modifiers\-for\-arrays#'
-            path: rules/CodingStyle/Rector/Encapsed/EncapsedStringsToSprintfRector.php #35
-
-        # PropertyFetches inside method are different
-        -
-            message: '#Content of method "processGreater(Left|Right)\(\)" is duplicated with method "processGreaterOrEqual(Left|Right)\(\)" in "Rector\\DeadCode\\Rector\\ConstFetch\\RemovePhpVersionIdCheckRector" class\. Use unique content or service instead#'
-            path: rules/DeadCode/Rector/ConstFetch/RemovePhpVersionIdCheckRector.php
-
         -
             message: '#Instead of "DateTime" class/interface use "Nette\\Utils\\DateTime"#'
             path: src/Application/VersionResolver.php
 
+        # complex multiprinter
         -
-            message: '#Class cognitive complexity is 55, keep it under 50#'
+            message: '#Class cognitive complexity is \d+, keep it under 50#'
             path: src/PhpParser/Printer/BetterStandardPrinter.php #41
 
         # validate class-string input
@@ -650,10 +601,6 @@ parameters:
                 - src/ValueObject/StaticNonPhpFileSuffixes.php
                 - tests/FileSystem/FilesFinder/FilesFinderTest.php
 
-        # union booleans
-        - '#Method Rector\\Strict\\NodeFactory\\ExactCompareFactory\:\:createTruthyFromUnionType\(\) should return PhpParser\\Node\\Expr\\BinaryOp\\BooleanOr\|PhpParser\\Node\\Expr\\BinaryOp\\Identical\|PhpParser\\Node\\Expr\\BinaryOp\\NotIdentical\|PhpParser\\Node\\Expr\\BooleanNot\|PhpParser\\Node\\Expr\\Instanceof_\|null but returns PhpParser\\Node\\Expr\\BinaryOp\\BooleanAnd\|PhpParser\\Node\\Expr\\BinaryOp\\BooleanOr\|PhpParser\\Node\\Expr\\BinaryOp\\Identical\|PhpParser\\Node\\Expr\\BinaryOp\\NotIdentical\|PhpParser\\Node\\Expr\\Instanceof_\|null#'
-        - '#Parameter \#1 \$compareExprs of method Rector\\Strict\\NodeFactory\\ExactCompareFactory\:\:resolveTruthyExpr\(\) expects array<PhpParser\\Node\\Expr\\BinaryOp\\BooleanAnd\|PhpParser\\Node\\Expr\\BinaryOp\\BooleanOr\|PhpParser\\Node\\Expr\\BinaryOp\\Identical\|PhpParser\\Node\\Expr\\BinaryOp\\NotIdentical\|PhpParser\\Node\\Expr\\Instanceof_\|null>, array<PhpParser\\Node\\Expr\\BinaryOp\\BooleanOr\|PhpParser\\Node\\Expr\\BinaryOp\\Identical\|PhpParser\\Node\\Expr\\BinaryOp\\NotIdentical\|PhpParser\\Node\\Expr\\BooleanNot\|PhpParser\\Node\\Expr\\Instanceof_\|null> given#'
-
         # part of tests
         - '#Call to method PHPUnit\\Framework\\Assert\:\:assertIsInt\(\) with 50200\|50300\|50400\|50500\|50600\|70000\|70100\|70200\|70300\|70400\|80000\|80100\|80200\|100000 will always evaluate to true#'
 
@@ -661,13 +608,14 @@ parameters:
             message: '#Method call return value that should be used, but is not#'
             paths:
                 - src/Console/Output/RectorOutputStyle.php
+                - rules/Compatibility/NodeFactory/ConstructorClassMethodFactory.php
                 - src/Application/ChangedNodeScopeRefresher.php
                 - rules/TypeDeclaration/TypeNormalizer.php
                 - rules/TypeDeclaration/Rector/ClassMethod/ReturnTypeFromStrictNewArrayRector.php
-                - rules/Composer/Guard/VersionGuard.php
                 - rules/Removing/NodeManipulator/ComplexNodeRemover.php
                 - rules/CodingStyle/Rector/ClassMethod/FuncGetArgsToVariadicParamRector.php
                 - packages/NodeTypeResolver/PHPStan/Scope/PHPStanNodeScopeResolver.php
+                - packages/PhpDocParser/PhpDocParser/PhpDocNodeTraverser.php
 
         -
             message: '#Method call return value that should be used, but is not#'
@@ -679,12 +627,9 @@ parameters:
             message: '#This call has duplicate argument#'
             path: rules/Php72/Rector/Assign/ReplaceEachAssignmentWithKeyCurrentRector.php
 
-        # tests
-        - '#Call to method PHPUnit\\Framework\\Assert\:\:assertInstanceOf\(\) with (.*?) and Rector\\Renaming\\Rector\\Name\\RenameClassRector will always evaluate to true#'
-
         # false postive, on trait use in multiple classes
         -
-            message: '#Method name "(.*?)Attribute\(\)" is used in multiple traits\. Make it it unique to avoid conflicts#'
+            message: '#Method name "(.*?)Attribute\(\)" is used in multiple traits\. Make it unique to avoid conflicts#'
             paths:
                 - packages/BetterPhpDocParser/ValueObject/PhpDoc/DoctrineAnnotation/AbstractValuesAwareNode.php
                 - packages/BetterPhpDocParser/PhpDoc/ArrayItemNode.php
@@ -699,12 +644,160 @@ parameters:
 
         - '#Call to static method Webmozart\\Assert\\Assert\:\:allString\(\) with array<string> will always evaluate to true#'
 
-        # false positive
-        -
-            message: '#Parameter \#1 \$value of class PhpParser\\Node\\Expr\\ArrayItem constructor expects PhpParser\\Node\\Expr, PhpParser\\Node\\Expr\|string given#'
-            path: packages/PhpAttribute/AnnotationToAttributeMapper/ArrayItemNodeAnnotationToAttributeMapper.php
-
-        # simple filter
+        # simple array filters
         -
             message: '#Use separate function calls with readable variable names#'
-            path: utils/RuleDocGenerator/PostRectorOutFilter.php
+            paths:
+                - utils/RuleDocGenerator/PostRectorOutFilter.php
+                - rules/CodingStyle/Rector/String_/UseClassKeywordForClassNameResolutionRector.php
+
+        # phpdoc node traversing
+        -
+            message: "#Implicit array creation is not allowed \\- variable \\$doNodes might not exist#"
+            path: "packages/PhpDocParser/PhpDocParser/PhpDocNodeTraverser.php"
+        -
+            message: '#Instead of abstract class, use specific service with composition#'
+            path: "packages/PhpDocParser/PhpDocParser/PhpDocNodeVisitor/AbstractPhpDocNodeVisitor.php"
+        -
+            message: '#Use explicit return value over magic &reference#'
+            path: "packages/PhpDocParser/PhpDocParser/PhpDocNodeTraverser.php"
+        -
+            message: '#Cognitive complexity for "Rector\\PhpDocParser\\PhpDocParser\\PhpDocNodeTraverser\:\:(.*?)\(\)" is \d+, keep it under 10#'
+            path: "packages/PhpDocParser/PhpDocParser/PhpDocNodeTraverser.php"
+        -
+            message: '#Variable property access on TNode of PHPStan\\PhpDocParser\\Ast\\Node#'
+            path: "packages/PhpDocParser/PhpDocParser/PhpDocNodeTraverser.php"
+        -
+            message: '#Use explicit names over dynamic ones#'
+            path: "packages/PhpDocParser/PhpDocParser/PhpDocNodeTraverser.php"
+        -
+            message: "#Class cognitive complexity is 69, keep it under 50#"
+            path: "packages/PhpDocParser/PhpDocParser/PhpDocNodeTraverser.php"
+
+        -
+            message: '#Use explicit names over dynamic ones#'
+            path: "packages/PhpDocParser/NodeValue/NodeValueResolver/FuncCallValueResolver.php"
+        -
+            message: '#Make callable type explicit\. Here is how\: https\://phpstan\.org/writing\-php\-code/phpdoc\-types\#callables#'
+            path: "packages/PhpDocParser/NodeValue/NodeValueResolver/FuncCallValueResolver.php"
+        -
+            message: '#Function "function_exists\(\)" cannot be used/left in the code\: use ReflectionProvider\->has\*\(\) instead#'
+            path: "packages/PhpDocParser/NodeValue/NodeValueResolver/FuncCallValueResolver.php"
+
+        -
+            message: '#Creating new PHPStan\\Parser\\(CachedParser|SimpleParser) is not covered by backward compatibility promise\. The class might change in a minor PHPStan version#'
+            path: packages/PhpDocParser/PhpParser/SmartPhpParserFactory.php
+
+        # used in a trait
+        - '#Class constant "TEMP_FIXTURE_DIRECTORY" is never used#'
+
+        # used in abstract test case
+        - '#Class constant "SPLIT_LINE_REGEX" is never used#'
+
+        -
+            message: '#Only booleans are allowed in a negated boolean, string\|false given#'
+            path: packages/Testing/Fixture/FixtureFileUpdater.php
+
+        -
+            message: '#Only booleans are allowed in a negated boolean, array<int, ReflectionParameter> given#'
+            path: src/DependencyInjection/CompilerPass/AutowireArrayParameterCompilerPass.php
+
+        -
+            message: '#Only booleans are allowed in an if condition, array\|string\|null give#'
+            path: src/DependencyInjection/CompilerPass/AutowireArrayParameterCompilerPass.php
+
+        -
+            message: '#Content of method "(.*?)" is duplicated\. Use unique content or service instead#'
+            paths:
+                - packages/NodeTypeResolver/NodeTypeResolver.php
+                - packages/NodeTypeResolver/PHPStan/TypeHasher.php
+
+        -
+            message: '#Content of method "refactor\(\)" is duplicated\. Use unique content or service instead#'
+            paths:
+                - rules/CodingStyle/Rector/ArrowFunction/StaticArrowFunctionRector.php
+                - rules/CodingStyle/Rector/Closure/StaticClosureRector.php
+
+        -
+            message: '#Content of method "resolveAssignVar\(\)" is duplicated\. Use unique content or service instead#'
+            paths:
+                - rules/Php80/Rector/Switch_/ChangeSwitchToMatchRector.php
+                - rules/Php80/NodeFactory/MatchFactory.php
+
+        -
+            message: '#Content of method "(.*?)" is duplicated\. Use unique content or service instead#'
+            path:  rules/DeadCode/Rector/ConstFetch/RemovePhpVersionIdCheckRector.php
+
+        # known existing class
+        -
+            message: '#Instead of "instanceof/is_a\(\)" use ReflectionProvider service or "\(new ObjectType\(<desired_type>\)\)\->isSuperTypeOf\(<element_type>\)" for static reflection to work#'
+            path: packages/Skipper/Skipper/SkipSkipper.php
+
+        # split of string schema
+        -
+            message: '#Array destruct is not allowed\. Use value object to pass data instead#'
+            path: src/FileSystem/FilePathHelper.php
+
+        # the local instanceof for known types
+        - '#Instead of "instanceof/is_a\(\)" use ReflectionProvider service or "\(new ObjectType\(<desired_type>\)\)\->isSuperTypeOf\(<element_type>\)" for static reflection to work#'
+
+        # required for reflection
+        -
+            message: '#Use explicit return value over magic &reference#'
+            path: src/Util/Reflection/PrivatesAccessor.php
+        -
+            message: '#Function "(.*?)\(\)" cannot be used/left in the code#'
+            path: src/Util/Reflection/PrivatesAccessor.php
+
+        # generic usage
+        - '#Parameters should use "Rector\\Core\\Tests\\Util\\Reflection\\Fixture\\SomeClassWithPrivateMethods\|string\|int" types as the only types passed to this method#'
+
+        # for reflection
+        -
+            message: '#\$this as argument is not allowed\. Refactor method to service composition#'
+            path: packages/BetterPhpDocParser/PhpDocParser/BetterPhpDocParser.php
+
+        -
+            message: '#Offset \(int\|string\) on non\-empty\-array<PHPStan\\PhpDocParser\\Ast\\PhpDoc\\PhpDocChildNode> in isset\(\) always exists and is not nullable#'
+            path: packages/BetterPhpDocParser/PhpDocParser/DoctrineAnnotationDecorator.php
+
+        -
+            message: '#Method Rector\\Core\\Util\\ArrayParametersMerger\:\:mergeLeftToRightWithCallable\(\) has parameter \$mergeCallback with no signature specified for callable#'
+            path: src/Util/ArrayParametersMerger.php
+
+        -
+            message: '#Make callable type explicit\. Here is how\: https\://phpstan\.org/writing\-php\-code/phpdoc\-types\#callables#'
+            path: src/Util/ArrayParametersMerger.php
+
+        -
+            message: '#Construct empty\(\) is not allowed\. Use more strict comparison#'
+            path: src/Util/ArrayParametersMerger.php
+
+        -
+            message: '#"empty\(\$right\)" is forbidden to use#'
+            path: src/Util/ArrayParametersMerger.php
+
+        # not relevant anymore
+        - '#Instead of "Symfony\\Component\\Finder\\SplFileInfo" class/interface use "Symplify\\SmartFileSystem\\SmartFileInfo"#'
+
+        # fixture class
+        - '#Class "Rector\\Core\\Tests\\Issues\\ScopeNotAvailable\\Variable\\ArrayItemForeachValueRector" is missing @see annotation with test case class reference#'
+
+        -
+            path: packages/NodeTypeResolver/DependencyInjection/PHPStanServicesFactory.php
+            message: '#Offset (.*?)includes(.*?) always exists and is not nullable#'
+
+        # returns bool for notifications
+        - '#Method "renamePropertyPromotion\(\)" returns bool type, so the name should start with is/has/was#'
+
+        # false positive
+        - '#Method Rector\\TypeDeclaration\\Rector\\ClassMethod\\AddParamTypeBasedOnPHPUnitDataProviderRector\:\:resolveDataProviderPhpDocTagNode\(\) should return PHPStan\\PhpDocParser\\Ast\\PhpDoc\\PhpDocTagNode\|null but returns PHPStan\\PhpDocParser\\Ast\\Node\|null#'
+
+        # on purpose, as rule it about to be removed
+        - '#Register "Rector\\Php74\\Rector\\Property\\TypedPropertyRector" service to "php74\.php" config set#'
+        - '#Cognitive complexity for "Rector\\TypeDeclaration\\Rector\\Property\\TypedPropertyFromStrictConstructorRector\:\:refactor\(\)" is 12, keep it under 10#'
+
+        -
+            message: '#Short ternary operator is not allowed\. Use null coalesce operator if applicable or consider using long ternary#'
+            paths:
+                - src/DependencyInjection/DefinitionFinder.php

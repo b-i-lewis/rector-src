@@ -7,7 +7,6 @@ namespace Rector\TypeDeclaration\NodeTypeAnalyzer;
 use PhpParser\Node\ComplexType;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Property;
-use PHPStan\Type\ArrayType;
 use PHPStan\Type\UnionType;
 use PHPStan\Type\VerbosityLevel;
 use Rector\BetterPhpDocParser\PhpDocInfo\PhpDocInfo;
@@ -31,12 +30,16 @@ final class PropertyTypeDecorator
         UnionType $unionType,
         Name|ComplexType $typeNode,
         Property $property,
-        PhpDocInfo $phpDocInfo
+        PhpDocInfo $phpDocInfo,
+        bool $changeVarTypeFallback = true
     ): void {
         if (! $this->unionTypeAnalyzer->isNullable($unionType)) {
             if ($this->phpVersionProvider->isAtLeastPhpVersion(PhpVersionFeature::UNION_TYPES)) {
                 $property->type = $typeNode;
-            } else {
+                return;
+            }
+
+            if ($changeVarTypeFallback) {
                 $this->phpDocTypeChanger->changeVarType($phpDocInfo, $unionType);
             }
 
@@ -53,15 +56,21 @@ final class PropertyTypeDecorator
         }
 
         // has array with defined type? add docs
-        if ($this->isDocBlockRequired($unionType)) {
-            $this->phpDocTypeChanger->changeVarType($phpDocInfo, $unionType);
+        if (! $this->isDocBlockRequired($unionType)) {
+            return;
         }
+
+        if (! $changeVarTypeFallback) {
+            return;
+        }
+
+        $this->phpDocTypeChanger->changeVarType($phpDocInfo, $unionType);
     }
 
     private function isDocBlockRequired(UnionType $unionType): bool
     {
         foreach ($unionType->getTypes() as $unionedType) {
-            if ($unionedType instanceof ArrayType) {
+            if ($unionedType->isArray()->yes()) {
                 $describedArray = $unionedType->describe(VerbosityLevel::value());
                 if ($describedArray !== 'array') {
                     return true;

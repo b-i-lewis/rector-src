@@ -26,7 +26,6 @@ use Rector\Core\Reflection\ReflectionResolver;
 use Rector\Core\ValueObject\PhpVersionFeature;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\NodeTypeResolver\PHPStan\ParametersAcceptorSelectorVariantsWrapper;
-use Rector\Php73\NodeTypeAnalyzer\NodeTypeAnalyzer;
 use Rector\VersionBonding\Contract\MinPhpVersionInterface;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -43,11 +42,17 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'preg_split' => ['subject'],
         'preg_match' => ['subject'],
         'preg_match_all' => ['subject'],
+        'preg_filter' => ['replacement', 'subject'],
+        'preg_replace' => ['replacement', 'subject'],
+        'preg_replace_callback' => ['subject'],
+        'preg_replace_callback_array' => ['subject'],
         'explode' => ['string'],
         'strlen' => ['string'],
         'str_contains' => ['haystack', 'needle'],
         'strtotime' => ['datetime'],
         'str_replace' => ['subject'],
+        'substr_replace' => ['string', 'replace'],
+        'str_ireplace' => ['search', 'replace', 'subject'],
         'substr' => ['string'],
         'str_starts_with' => ['haystack', 'needle'],
         'strtoupper' => ['string'],
@@ -83,6 +88,8 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'curl_escape' => ['string'],
         'curl_unescape' => ['string'],
         'convert_uuencode' => ['string'],
+        'setcookie' => ['value', 'path', 'domain'],
+        'setrawcookie' => ['value', 'path', 'domain'],
         'zlib_encode' => ['data'],
         'gzdeflate' => ['data'],
         'gzencode' => ['data'],
@@ -107,6 +114,10 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'transliterator_transliterate' => ['string'],
         'mysqli_real_escape_string' => ['string'],
         'mysqli_escape_string' => ['string'],
+        'pg_escape_bytea' => ['string'],
+        'pg_escape_literal' => ['string'],
+        'pg_escape_string' => ['string'],
+        'pg_unescape_bytea' => ['string'],
         'ucfirst' => ['string'],
         'lcfirst' => ['string'],
         'ucwords' => ['string'],
@@ -132,6 +143,7 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'mb_strtolower' => ['string'],
         'mb_convert_case' => ['string'],
         'mb_convert_kana' => ['string'],
+        'mb_convert_encoding' => ['string'],
         'mb_scrub' => ['string'],
         'mb_substr' => ['string'],
         'mb_substr_count' => ['haystack', 'needle'],
@@ -147,6 +159,7 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'mb_strrpos' => ['haystack', 'needle'],
         'mb_stripos' => ['haystack', 'needle'],
         'mb_strripos' => ['haystack', 'needle'],
+        'grapheme_extract' => ['haystack'],
         'grapheme_strpos' => ['haystack', 'needle'],
         'grapheme_strrpos' => ['haystack', 'needle'],
         'grapheme_stripos' => ['haystack', 'needle'],
@@ -163,6 +176,7 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'collator_get_sort_key' => ['string'],
         'metaphone' => ['string'],
         'soundex' => ['string'],
+        'levenshtein' => ['string1', 'string2'],
         'similar_text' => ['string1', 'string2'],
         'sodium_compare' => ['string1', 'string2'],
         'sodium_memcmp' => ['string1', 'string2'],
@@ -173,6 +187,8 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'strpbrk' => ['string', 'characters'],
         'strspn' => ['string', 'characters'],
         'strcspn' => ['string', 'characters'],
+        'strtr' => ['string'],
+        'strtok' => ['string'],
         'str_word_count' => ['string'],
         'count_chars' => ['string'],
         'iconv_strlen' => ['string'],
@@ -198,6 +214,7 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'normalizer_normalize' => ['string'],
         'normalizer_is_normalized' => ['string'],
         'normalizer_get_raw_decomposition' => ['string'],
+        'numfmt_parse' => ['string'],
         'hash' => ['algo', 'data'],
         'hash_hmac' => ['algo', 'data', 'key'],
         'hash_update' => ['data'],
@@ -209,6 +226,7 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'basename' => ['path'],
         'dirname' => ['path'],
         'pathinfo' => ['path'],
+        'sscanf' => ['string'],
         'fwrite' => ['data'],
         'fputs' => ['data'],
         'output_add_rewrite_var' => ['name', 'value'],
@@ -220,6 +238,8 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'msgfmt_parse' => ['string'],
         'msgfmt_parse_message' => ['locale', 'pattern', 'message'],
         'str_getcsv' => ['string'],
+        'fgetcsv' => ['escape'],
+        'fputcsv' => ['escape'],
         'password_hash' => ['password'],
         'password_verify' => ['password', 'hash'],
         'bcadd' => ['num1', 'num2'],
@@ -234,13 +254,16 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'simplexml_load_string' => ['data'],
         'xml_parse' => ['data'],
         'xml_parse_into_struct' => ['data'],
+        'xml_parser_create_ns' => ['separator'],
         'xmlwriter_set_indent_string' => ['indentation'],
         'xmlwriter_write_attribute' => ['name', 'value'],
+        'xmlwriter_write_attribute_ns' => ['value'],
         'xmlwriter_write_pi' => ['target', 'content'],
         'xmlwriter_write_cdata' => ['content'],
         'xmlwriter_text' => ['content'],
         'xmlwriter_write_raw' => ['content'],
         'xmlwriter_write_comment' => ['content'],
+        'xmlwriter_write_dtd' => ['name'],
         'xmlwriter_write_dtd_element' => ['name', 'content'],
         'xmlwriter_write_dtd_attlist' => ['name', 'content'],
         'xmlwriter_write_dtd_entity' => ['name', 'content'],
@@ -263,21 +286,51 @@ final class NullToStrictStringFuncCallArgRector extends AbstractRector implement
         'sodium_crypto_secretstream_xchacha20poly1305_pull' => ['ciphertext'],
         'sodium_crypto_shorthash' => ['message', 'key'],
         'sodium_crypto_sign' => ['message', 'secret_key'],
+        'sodium_crypto_sign_detached' => ['message'],
         'sodium_crypto_sign_open' => ['signed_message', 'public_key'],
         'sodium_crypto_sign_verify_detached' => ['signature', 'message', 'public_key'],
         'sodium_crypto_stream_xor' => ['message', 'nonce', 'key'],
         'sodium_crypto_stream_xchacha20_xor' => ['message', 'nonce', 'key'],
+        'imagechar' => ['char'],
+        'imagecharup' => ['char'],
+        'imageftbbox' => ['string'],
+        'imagefttext' => ['text'],
+        'imagestring' => ['string'],
+        'imagestringup' => ['string'],
+        'imagettfbbox' => ['string'],
+        'imagettftext' => ['text'],
+        'pspell_add_to_personal' => ['word'],
+        'pspell_add_to_session' => ['word'],
+        'pspell_check' => ['word'],
+        'pspell_config_create' => ['language', 'spelling', 'jargon', 'encoding'],
+        'pspell_new' => ['spelling', 'jargon', 'encoding'],
+        'pspell_new_personal' => ['spelling', 'jargon', 'encoding'],
+        'pspell_store_replacement' => ['correct'],
+        'pspell_suggest' => ['word'],
+        'stream_get_line' => ['ending'],
         'stream_socket_sendto' => ['data'],
+        'socket_sendto' => ['data'],
         'socket_write' => ['data'],
         'socket_send' => ['data'],
         'mail' => ['to', 'subject', 'message'],
         'mb_send_mail' => ['to', 'subject', 'message'],
+        'ctype_alnum' => ['text'],
+        'ctype_alpha' => ['text'],
+        'ctype_cntrl' => ['text'],
+        'ctype_digit' => ['text'],
+        'ctype_graph' => ['text'],
+        'ctype_lower' => ['text'],
+        'ctype_print' => ['text'],
+        'ctype_punct' => ['text'],
+        'ctype_space' => ['text'],
+        'ctype_upper' => ['text'],
+        'ctype_xdigit' => ['text'],
+        'uniqid' => ['prefix'],
     ];
 
     public function __construct(
         private readonly ReflectionResolver $reflectionResolver,
-        private readonly ArgsAnalyzer $argsAnalyzer,
-        private readonly NodeTypeAnalyzer $nodeTypeAnalyzer
+        private readonly ArgsAnalyzer $argsAnalyzer
     ) {
     }
 
@@ -405,7 +458,7 @@ CODE_SAMPLE
         }
 
         $type = $this->nodeTypeResolver->getType($argValue);
-        if ($this->nodeTypeAnalyzer->isStringyType($type)) {
+        if ($type->isString()->yes()) {
             return null;
         }
 
@@ -484,7 +537,7 @@ CODE_SAMPLE
             $funcCall,
             $scope
         );
-        $functionName = $this->nodeNameResolver->getName($funcCall);
+        $functionName = $functionReflection->getName();
         $argNames = self::ARG_POSITION_NAME_NULL_TO_STRICT_STRING[$functionName];
         $positions = [];
 
@@ -500,6 +553,10 @@ CODE_SAMPLE
     private function shouldSkip(FuncCall $funcCall): bool
     {
         $functionNames = array_keys(self::ARG_POSITION_NAME_NULL_TO_STRICT_STRING);
-        return ! $this->nodeNameResolver->isNames($funcCall, $functionNames);
+        if (! $this->nodeNameResolver->isNames($funcCall, $functionNames)) {
+            return true;
+        }
+
+        return $funcCall->isFirstClassCallable();
     }
 }

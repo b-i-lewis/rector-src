@@ -6,60 +6,45 @@ namespace Rector\Core\FileSystem;
 
 use Rector\Caching\UnchangedFilesFilter;
 use Rector\Core\Util\StringUtils;
+use Rector\Skipper\Enum\AsteriskMatch;
+use Rector\Skipper\SkipCriteriaResolver\SkippedPathsResolver;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
-use Symplify\Skipper\SkipCriteriaResolver\SkippedPathsResolver;
-use Symplify\SmartFileSystem\FileSystemFilter;
-use Symplify\SmartFileSystem\Finder\FinderSanitizer;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 /**
  * @see \Rector\Core\Tests\FileSystem\FilesFinder\FilesFinderTest
  */
 final class FilesFinder
 {
-    /**
-     * @var string
-     * @see https://regex101.com/r/e1jm7v/1
-     */
-    private const STARTS_WITH_ASTERISK_REGEX = '#^\*(.*?)[^*]$#';
-
-    /**
-     * @var string
-     * @see https://regex101.com/r/EgJQyZ/1
-     */
-    private const ENDS_WITH_ASTERISK_REGEX = '#^[^*](.*?)\*$#';
-
     public function __construct(
         private readonly FilesystemTweaker $filesystemTweaker,
-        private readonly FinderSanitizer $finderSanitizer,
-        private readonly FileSystemFilter $fileSystemFilter,
         private readonly SkippedPathsResolver $skippedPathsResolver,
         private readonly UnchangedFilesFilter $unchangedFilesFilter,
+        private readonly FileAndDirectoryFilter $fileAndDirectoryFilter,
     ) {
     }
 
     /**
      * @param string[] $source
      * @param string[] $suffixes
-     * @return SmartFileInfo[]
+     * @return string[]
      */
     public function findInDirectoriesAndFiles(array $source, array $suffixes = []): array
     {
         $filesAndDirectories = $this->filesystemTweaker->resolveWithFnmatch($source);
 
-        $filePaths = $this->fileSystemFilter->filterFiles($filesAndDirectories);
-        $directories = $this->fileSystemFilter->filterDirectories($filesAndDirectories);
+        $filePaths = $this->fileAndDirectoryFilter->filterFiles($filesAndDirectories);
+        $directories = $this->fileAndDirectoryFilter->filterDirectories($filesAndDirectories);
 
-        $smartFileInfos = $this->unchangedFilesFilter->filterAndJoinWithDependentFileInfos($filePaths);
+        $currentAndDependentFilePaths = $this->unchangedFilesFilter->filterAndJoinWithDependentFileInfos($filePaths);
 
-        return array_merge($smartFileInfos, $this->findInDirectories($directories, $suffixes));
+        return array_merge($currentAndDependentFilePaths, $this->findInDirectories($directories, $suffixes));
     }
 
     /**
      * @param string[] $directories
      * @param string[] $suffixes
-     * @return SmartFileInfo[]
+     * @return string[]
      */
     private function findInDirectories(array $directories, array $suffixes): array
     {
@@ -81,9 +66,19 @@ final class FilesFinder
 
         $this->addFilterWithExcludedPaths($finder);
 
-        $smartFileInfos = $this->finderSanitizer->sanitize($finder);
+        $filePaths = [];
+        foreach ($finder as $fileInfo) {
+            // getRealPath() function will return false when it checks broken symlinks.
+            // So we should check if this file exists or we got broken symlink
 
-        return $this->unchangedFilesFilter->filterAndJoinWithDependentFileInfos($smartFileInfos);
+            /** @var string|false $path */
+            $path = $fileInfo->getRealPath();
+            if ($path !== false) {
+                $filePaths[] = $path;
+            }
+        }
+
+        return $this->unchangedFilesFilter->filterAndJoinWithDependentFileInfos($filePaths);
     }
 
     /**
@@ -139,12 +134,12 @@ final class FilesFinder
     private function normalizeForFnmatch(string $path): string
     {
         // ends with *
-        if (StringUtils::isMatch($path, self::ENDS_WITH_ASTERISK_REGEX)) {
+        if (StringUtils::isMatch($path, AsteriskMatch::ONLY_ENDS_WITH_ASTERISK_REGEX)) {
             return '*' . $path;
         }
 
         // starts with *
-        if (StringUtils::isMatch($path, self::STARTS_WITH_ASTERISK_REGEX)) {
+        if (StringUtils::isMatch($path, AsteriskMatch::ONLY_STARTS_WITH_ASTERISK_REGEX)) {
             return $path . '*';
         }
 

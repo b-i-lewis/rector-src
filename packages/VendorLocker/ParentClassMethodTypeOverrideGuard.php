@@ -11,25 +11,21 @@ use PHPStan\Reflection\MethodReflection;
 use PHPStan\Reflection\ParametersAcceptorSelector;
 use PHPStan\Type\MixedType;
 use PHPStan\Type\Type;
-use Rector\Core\PhpParser\AstResolver;
+use Rector\Core\FileSystem\FilePathHelper;
 use Rector\Core\Reflection\ReflectionResolver;
 use Rector\Core\ValueObject\MethodName;
 use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\TypeComparator\TypeComparator;
 use Rector\StaticTypeMapper\StaticTypeMapper;
-use Rector\TypeDeclaration\TypeInferer\ParamTypeInferer;
-use Symplify\SmartFileSystem\Normalizer\PathNormalizer;
 
 final class ParentClassMethodTypeOverrideGuard
 {
     public function __construct(
         private readonly NodeNameResolver $nodeNameResolver,
-        private readonly PathNormalizer $pathNormalizer,
-        private readonly AstResolver $astResolver,
-        private readonly ParamTypeInferer $paramTypeInferer,
         private readonly ReflectionResolver $reflectionResolver,
         private readonly TypeComparator $typeComparator,
-        private readonly StaticTypeMapper $staticTypeMapper
+        private readonly StaticTypeMapper $staticTypeMapper,
+        private readonly FilePathHelper $filePathHelper
     ) {
     }
 
@@ -78,11 +74,11 @@ final class ParentClassMethodTypeOverrideGuard
         $currentFileName = $currentClassReflection->getFileName();
 
         // child (current)
-        $normalizedCurrentFileName = $this->pathNormalizer->normalizePath($currentFileName);
+        $normalizedCurrentFileName = $this->filePathHelper->normalizePathAndSchema($currentFileName);
         $isCurrentInVendor = str_contains($normalizedCurrentFileName, '/vendor/');
 
         // parent
-        $normalizedFileName = $this->pathNormalizer->normalizePath($fileName);
+        $normalizedFileName = $this->filePathHelper->normalizePathAndSchema($fileName);
         $isParentInVendor = str_contains($normalizedFileName, '/vendor/');
 
         return ($isCurrentInVendor && $isParentInVendor) || (! $isCurrentInVendor && ! $isParentInVendor);
@@ -91,34 +87,6 @@ final class ParentClassMethodTypeOverrideGuard
     public function hasParentClassMethod(ClassMethod $classMethod): bool
     {
         return $this->getParentClassMethod($classMethod) instanceof MethodReflection;
-    }
-
-    public function hasParentClassMethodDifferentType(ClassMethod $classMethod, int $position, Type $currentType): bool
-    {
-        if ($classMethod->isPrivate()) {
-            return false;
-        }
-
-        $methodReflection = $this->getParentClassMethod($classMethod);
-        if (! $methodReflection instanceof MethodReflection) {
-            return false;
-        }
-
-        $classMethod = $this->astResolver->resolveClassMethodFromMethodReflection($methodReflection);
-        if (! $classMethod instanceof ClassMethod) {
-            return false;
-        }
-
-        if ($classMethod->isPrivate()) {
-            return false;
-        }
-
-        if (! isset($classMethod->params[$position])) {
-            return false;
-        }
-
-        $inferedType = $this->paramTypeInferer->inferParam($classMethod->params[$position]);
-        return $inferedType::class !== $currentType::class;
     }
 
     public function getParentClassMethod(ClassMethod $classMethod): ?MethodReflection

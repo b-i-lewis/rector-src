@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rector\Tests\BetterPhpDocParser\PhpDocInfo\PhpDocInfoPrinter;
 
 use Iterator;
+use Nette\Utils\FileSystem;
 use PhpParser\BuilderFactory;
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Class_;
@@ -13,7 +14,6 @@ use PhpParser\Node\Stmt\Nop;
 use PhpParser\Node\Stmt\Property;
 use Rector\Tests\BetterPhpDocParser\PhpDocInfo\PhpDocInfoPrinter\Source\Class_\SomeEntityClass;
 use Rector\Tests\BetterPhpDocParser\PhpDocInfo\PhpDocInfoPrinter\Source\TableClass;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class MultilineTest extends AbstractPhpDocInfoPrinterTest
 {
@@ -24,14 +24,11 @@ final class MultilineTest extends AbstractPhpDocInfoPrinterTest
      */
     public function test(string $docFilePath, Node $node): void
     {
-        $docComment = $this->smartFileSystem->readFile($docFilePath);
+        $docComment = FileSystem::read($docFilePath);
         $phpDocInfo = $this->createPhpDocInfoFromDocCommentAndNode($docComment, $node);
 
-        $fileInfo = new SmartFileInfo($docFilePath);
-        $relativeFilePathFromCwd = $fileInfo->getRelativeFilePathFromCwd();
-
         $printedPhpDocInfo = $this->phpDocInfoPrinter->printFormatPreserving($phpDocInfo);
-        $this->assertSame($docComment, $printedPhpDocInfo, $relativeFilePathFromCwd);
+        $this->assertSame($docComment, $printedPhpDocInfo);
     }
 
     public function provideData(): Iterator

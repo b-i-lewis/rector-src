@@ -16,16 +16,17 @@ use PHPStan\Type\ObjectType;
 use PHPStan\Type\Type;
 use Rector\BetterPhpDocParser\ValueObject\PhpDocAttributeKey;
 use Rector\Core\Configuration\CurrentNodeProvider;
+use Rector\Core\Configuration\RectorConfigProvider;
 use Rector\Core\Exception\ShouldNotHappenException;
 use Rector\Core\PhpParser\Node\BetterNodeFinder;
 use Rector\Naming\Naming\UseImportsResolver;
 use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\NodeTypeResolver\ValueObject\OldToNewType;
+use Rector\PhpDocParser\PhpDocParser\PhpDocNodeVisitor\AbstractPhpDocNodeVisitor;
 use Rector\PHPStanStaticTypeMapper\Enum\TypeKind;
 use Rector\StaticTypeMapper\StaticTypeMapper;
 use Rector\StaticTypeMapper\ValueObject\Type\ShortenedObjectType;
-use Symplify\Astral\PhpDocParser\PhpDocNodeVisitor\AbstractPhpDocNodeVisitor;
 
 final class ClassRenamePhpDocNodeVisitor extends AbstractPhpDocNodeVisitor
 {
@@ -39,7 +40,8 @@ final class ClassRenamePhpDocNodeVisitor extends AbstractPhpDocNodeVisitor
         private readonly CurrentNodeProvider $currentNodeProvider,
         private readonly UseImportsResolver $useImportsResolver,
         private readonly BetterNodeFinder $betterNodeFinder,
-        private readonly NodeNameResolver $nodeNameResolver
+        private readonly NodeNameResolver $nodeNameResolver,
+        private readonly RectorConfigProvider $rectorConfigProvider
     ) {
     }
 
@@ -70,9 +72,16 @@ final class ClassRenamePhpDocNodeVisitor extends AbstractPhpDocNodeVisitor
         $identifier->name = $this->resolveNamespacedName($identifier, $phpParserNode, $node->name);
         $staticType = $this->staticTypeMapper->mapPHPStanPhpDocTypeNodeToPHPStanType($identifier, $phpParserNode);
 
+        $shouldImport = $this->rectorConfigProvider->shouldImportNames();
+        $isNoNamespacedName = ! str_starts_with($identifier->name, '\\') && substr_count($identifier->name, '\\') === 0;
+
+        // tweak overlapped import + rename
+        if ($shouldImport && $isNoNamespacedName) {
+            return null;
+        }
+
         // make sure to compare FQNs
         $objectType = $this->expandShortenedObjectType($staticType);
-
         foreach ($this->oldToNewTypes as $oldToNewType) {
             if (! $objectType->equals($oldToNewType->getOldType())) {
                 continue;

@@ -15,12 +15,10 @@ use Rector\BetterPhpDocParser\Printer\PhpDocInfoPrinter;
 use Rector\BetterPhpDocParser\ValueObject\PhpDoc\DoctrineAnnotation\CurlyListNode;
 use Rector\Core\Exception\ShouldNotHappenException;
 use Rector\Core\PhpParser\Node\BetterNodeFinder;
-use Rector\Core\Provider\CurrentFileProvider;
-use Rector\Core\ValueObject\Application\File;
 use Rector\FileSystemRector\Parser\FileInfoParser;
+use Rector\Testing\Fixture\FixtureSplitter;
+use Rector\Testing\Fixture\FixtureTempFileDumper;
 use Rector\Testing\PHPUnit\AbstractTestCase;
-use Symplify\EasyTesting\StaticFixtureSplitter;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 final class TestModifyReprintTest extends AbstractTestCase
 {
@@ -32,8 +30,6 @@ final class TestModifyReprintTest extends AbstractTestCase
 
     private PhpDocInfoFactory $phpDocInfoFactory;
 
-    private CurrentFileProvider $currentFileProvider;
-
     protected function setUp(): void
     {
         $this->boot();
@@ -43,18 +39,15 @@ final class TestModifyReprintTest extends AbstractTestCase
         $this->betterNodeFinder = $this->getService(BetterNodeFinder::class);
         $this->phpDocInfoPrinter = $this->getService(PhpDocInfoPrinter::class);
         $this->phpDocInfoFactory = $this->getService(PhpDocInfoFactory::class);
-        $this->currentFileProvider = $this->getService(CurrentFileProvider::class);
     }
 
     public function test(): void
     {
-        $fixtureFileInfo = new SmartFileInfo(__DIR__ . '/FixtureModify/route_with_extra_methods.php.inc');
+        [$inputContent, $expectedContent] = FixtureSplitter::loadFileAndSplitInputAndExpected(
+            __DIR__ . '/FixtureModify/route_with_extra_methods.php.inc'
+        );
 
-        $inputFileInfoAndExpected = StaticFixtureSplitter::splitFileInfoToLocalInputAndExpected($fixtureFileInfo);
-        $inputFileInfo = $inputFileInfoAndExpected->getInputFileInfo();
-
-        $this->currentFileProvider->setFile(new File($inputFileInfo, $inputFileInfo->getContents()));
-        $phpDocInfo = $this->parseFileAndGetFirstNodeOfType($inputFileInfo, ClassMethod::class);
+        $phpDocInfo = $this->parseFileAndGetFirstNodeOfType($inputContent, ClassMethod::class);
 
         /** @var DoctrineAnnotationTagValueNode $doctrineAnnotationTagValueNode */
         $doctrineAnnotationTagValueNode = $phpDocInfo->findOneByAnnotationClass(
@@ -68,7 +61,7 @@ final class TestModifyReprintTest extends AbstractTestCase
         ]);
         $doctrineAnnotationTagValueNode->values[] = new ArrayItemNode($methodsCurlyListNode, 'methods');
 
-        $expectedDocContent = trim((string) $inputFileInfoAndExpected->getExpected());
+        $expectedDocContent = trim((string) $expectedContent);
 
         $printedPhpDocInfo = $this->phpDocInfoPrinter->printFormatPreserving($phpDocInfo);
         $this->assertSame($expectedDocContent, $printedPhpDocInfo);
@@ -77,13 +70,14 @@ final class TestModifyReprintTest extends AbstractTestCase
     /**
      * @param class-string<Node> $nodeType
      */
-    private function parseFileAndGetFirstNodeOfType(SmartFileInfo $smartFileInfo, string $nodeType): PhpDocInfo
+    private function parseFileAndGetFirstNodeOfType(string $fileContents, string $nodeType): PhpDocInfo
     {
-        $nodes = $this->fileInfoParser->parseFileInfoToNodesAndDecorate($smartFileInfo);
+        $fixtureFilePath = FixtureTempFileDumper::dump($fileContents);
+        $nodes = $this->fileInfoParser->parseFileInfoToNodesAndDecorate($fixtureFilePath);
 
         $node = $this->betterNodeFinder->findFirstInstanceOf($nodes, $nodeType);
         if (! $node instanceof Node) {
-            throw new ShouldNotHappenException($smartFileInfo->getRealPath());
+            throw new ShouldNotHappenException($fileContents);
         }
 
         return $this->phpDocInfoFactory->createFromNodeOrEmpty($node);

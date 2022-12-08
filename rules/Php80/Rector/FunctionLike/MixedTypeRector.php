@@ -19,6 +19,7 @@ use Rector\Core\Reflection\ReflectionResolver;
 use Rector\Core\ValueObject\PhpVersionFeature;
 use Rector\DeadCode\PhpDoc\TagRemover\ParamTagRemover;
 use Rector\FamilyTree\NodeAnalyzer\ClassChildAnalyzer;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\VersionBonding\Contract\MinPhpVersionInterface;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -88,13 +89,16 @@ CODE_SAMPLE
         $phpDocInfo = $this->phpDocInfoFactory->createFromNodeOrEmpty($node);
 
         $this->refactorParamTypes($node, $phpDocInfo);
-        $this->paramTagRemover->removeParamTagsIfUseless($phpDocInfo, $node);
-
-        if (! $this->hasChanged) {
-            return null;
+        $hasChanged = $this->paramTagRemover->removeParamTagsIfUseless($phpDocInfo, $node);
+        if ($this->hasChanged) {
+            return $node;
         }
 
-        return $node;
+        if ($hasChanged) {
+            return $node;
+        }
+
+        return null;
     }
 
     public function provideMinPhpVersion(): int
@@ -141,6 +145,9 @@ CODE_SAMPLE
 
             $this->hasChanged = true;
             $param->type = new Identifier('mixed');
+            if ($param->flags !== 0) {
+                $param->setAttribute(AttributeKey::ORIGINAL_NODE, null);
+            }
         }
     }
 }

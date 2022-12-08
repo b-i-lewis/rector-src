@@ -10,7 +10,6 @@ use PhpParser\Node\Expr\BinaryOp\Identical;
 use PhpParser\Node\Expr\BinaryOp\NotIdentical;
 use PhpParser\Node\Expr\BooleanNot;
 use PhpParser\Node\Stmt\If_;
-use PHPStan\Type\ArrayType;
 use PHPStan\Type\BooleanType;
 use PHPStan\Type\FloatType;
 use PHPStan\Type\IntegerType;
@@ -101,7 +100,7 @@ CODE_SAMPLE
 
         // is array?
         foreach ($staticType->getTypes() as $subType) {
-            if ($subType instanceof ArrayType) {
+            if ($subType->isArray()->yes()) {
                 return false;
             }
         }

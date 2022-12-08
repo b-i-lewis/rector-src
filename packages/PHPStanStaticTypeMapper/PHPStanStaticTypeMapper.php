@@ -8,9 +8,8 @@ use PhpParser\Node\ComplexType;
 use PhpParser\Node\Name;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
-use PHPStan\Type\Accessory\AccessoryLiteralStringType;
-use PHPStan\Type\Accessory\AccessoryNumericStringType;
 use PHPStan\Type\Accessory\HasMethodType;
+use PHPStan\Type\ConditionalType;
 use PHPStan\Type\Type;
 use Rector\Core\Exception\NotImplementedYetException;
 use Rector\PHPStanStaticTypeMapper\Contract\TypeMapperInterface;
@@ -39,7 +38,7 @@ final class PHPStanStaticTypeMapper
             return $typeMapper->mapToPHPStanPhpDocTypeNode($type, $typeKind);
         }
 
-        if ($type instanceof AccessoryNumericStringType) {
+        if ($type->isString()->yes()) {
             return new IdentifierTypeNode('string');
         }
 
@@ -47,8 +46,8 @@ final class PHPStanStaticTypeMapper
             return new IdentifierTypeNode('object');
         }
 
-        if ($type instanceof AccessoryLiteralStringType) {
-            return new IdentifierTypeNode('string');
+        if ($type instanceof ConditionalType) {
+            return new IdentifierTypeNode('mixed');
         }
 
         throw new NotImplementedYetException(__METHOD__ . ' for ' . $type::class);

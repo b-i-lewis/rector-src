@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Rector\CodingStyle\Enum\PreferenceSelfThis;
 use Rector\CodingStyle\Rector\ClassMethod\ReturnArrayClassMethodToYieldRector;
 use Rector\CodingStyle\Rector\MethodCall\PreferThisOrSelfMethodCallRector;
+use Rector\CodingStyle\Rector\String_\UseClassKeywordForClassNameResolutionRector;
 use Rector\CodingStyle\ValueObject\ReturnArrayClassMethodToYield;
 use Rector\Config\RectorConfig;
 use Rector\Php55\Rector\String_\StringClassNameToClassConstantRector;
@@ -21,7 +22,6 @@ return static function (RectorConfig $rectorConfig): void {
         SetList::NAMING,
         SetList::TYPE_DECLARATION,
         SetList::EARLY_RETURN,
-        SetList::TYPE_DECLARATION_STRICT,
         PHPUnitSetList::PHPUNIT_CODE_QUALITY,
         SetList::CODING_STYLE,
     ]);
@@ -48,6 +48,7 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/utils',
         __DIR__ . '/config',
         __DIR__ . '/scoper.php',
+        __DIR__ . '/build/build-preload.php',
     ]);
 
     $rectorConfig->importNames();
@@ -67,6 +68,9 @@ return static function (RectorConfig $rectorConfig): void {
 
         // to keep original API from PHPStan untouched
         __DIR__ . '/packages/Caching/ValueObject/Storage/FileCacheStorage.php',
+
+        // keep configs untouched, as the classes are just strings
+        UseClassKeywordForClassNameResolutionRector::class => [__DIR__ . '/config', '*/config/*'],
     ]);
 
     $rectorConfig->phpstanConfig(__DIR__ . '/phpstan-for-rector.neon');

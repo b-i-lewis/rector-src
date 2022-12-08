@@ -6,7 +6,9 @@ namespace Rector\Core\NodeManipulator;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr;
+use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayDimFetch;
+use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\AssignOp;
 use PhpParser\Node\Expr\FuncCall;
@@ -22,9 +24,9 @@ use PhpParser\Node\Stmt\Expression;
 use Rector\Core\NodeAnalyzer\PropertyFetchAnalyzer;
 use Rector\Core\PhpParser\Comparing\NodeComparator;
 use Rector\Core\PhpParser\Node\BetterNodeFinder;
+use Rector\Core\Util\MultiInstanceofChecker;
 use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
-use Symplify\PackageBuilder\Php\TypeChecker;
 
 final class AssignManipulator
 {
@@ -44,7 +46,7 @@ final class AssignManipulator
         private readonly NodeComparator $nodeComparator,
         private readonly BetterNodeFinder $betterNodeFinder,
         private readonly PropertyFetchAnalyzer $propertyFetchAnalyzer,
-        private readonly TypeChecker $typeChecker
+        private readonly MultiInstanceofChecker $multiInstanceofChecker
     ) {
     }
 
@@ -72,7 +74,14 @@ final class AssignManipulator
             return true;
         }
 
-        if ($parentNode !== null && $this->typeChecker->isInstanceOf($parentNode, self::MODIFYING_NODE_TYPES)) {
+        if ($parentNode !== null && $this->multiInstanceofChecker->isInstanceOf(
+            $parentNode,
+            self::MODIFYING_NODE_TYPES
+        )) {
+            return true;
+        }
+
+        if ($this->isOnArrayDestructuring($parentNode)) {
             return true;
         }
 
@@ -124,5 +133,20 @@ final class AssignManipulator
 
             return $this->isLeftPartOfAssign($node);
         });
+    }
+
+    private function isOnArrayDestructuring(?Node $parentNode): bool
+    {
+        if (! $parentNode instanceof ArrayItem) {
+            return false;
+        }
+
+        $parentArrayItem = $parentNode->getAttribute(AttributeKey::PARENT_NODE);
+        if (! $parentArrayItem instanceof Array_) {
+            return false;
+        }
+
+        $node = $parentArrayItem->getAttribute(AttributeKey::PARENT_NODE);
+        return $node instanceof Assign && $node->var === $parentArrayItem;
     }
 }

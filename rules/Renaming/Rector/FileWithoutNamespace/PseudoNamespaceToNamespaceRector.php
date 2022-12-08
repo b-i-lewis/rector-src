@@ -10,7 +10,7 @@ use PhpParser\Node\FunctionLike;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt;
-use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\Namespace_;
 use PhpParser\Node\Stmt\Property;
 use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
@@ -82,15 +82,16 @@ CODE_SAMPLE
      */
     public function refactor(Node $node): ?Node
     {
+        $processNode = clone $node;
         $this->newNamespace = null;
 
-        if ($node instanceof FileWithoutNamespace) {
-            $changedStmts = $this->refactorStmts($node->stmts);
+        if ($processNode instanceof FileWithoutNamespace) {
+            $changedStmts = $this->refactorStmts($processNode->stmts);
             if ($changedStmts === null) {
                 return null;
             }
 
-            $node->stmts = $changedStmts;
+            $processNode->stmts = $changedStmts;
 
             // add a new namespace?
             if ($this->newNamespace !== null) {
@@ -98,8 +99,8 @@ CODE_SAMPLE
             }
         }
 
-        if ($node instanceof Namespace_) {
-            return $this->refactorNamespace($node);
+        if ($processNode instanceof Namespace_) {
+            return $this->refactorNamespace($processNode);
         }
 
         return null;
@@ -192,7 +193,7 @@ CODE_SAMPLE
     private function processIdentifier(Identifier $identifier): ?Identifier
     {
         $parentNode = $identifier->getAttribute(AttributeKey::PARENT_NODE);
-        if (! $parentNode instanceof Class_) {
+        if (! $parentNode instanceof ClassLike) {
             return null;
         }
 

@@ -8,8 +8,10 @@ use PHPStan\Analyser\NodeScopeResolver;
 use Rector\Core\Application\FileDecorator\FileDiffFileDecorator;
 use Rector\Core\Application\FileSystem\RemovedAndAddedFilesProcessor;
 use Rector\Core\Configuration\Option;
+use Rector\Core\Configuration\Parameter\ParameterProvider;
 use Rector\Core\Contract\Console\OutputStyleInterface;
 use Rector\Core\Contract\Processor\FileProcessorInterface;
+use Rector\Core\Util\ArrayParametersMerger;
 use Rector\Core\ValueObject\Application\File;
 use Rector\Core\ValueObject\Configuration;
 use Rector\Core\ValueObject\Error\SystemError;
@@ -18,14 +20,10 @@ use Rector\Core\ValueObjectFactory\Application\FileFactory;
 use Rector\Parallel\Application\ParallelFileProcessor;
 use Rector\Parallel\ValueObject\Bridge;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Filesystem\Filesystem;
 use Symplify\EasyParallel\CpuCoreCountProvider;
 use Symplify\EasyParallel\Exception\ParallelShouldNotHappenException;
-use Symplify\EasyParallel\FileSystem\FilePathNormalizer;
 use Symplify\EasyParallel\ScheduleFactory;
-use Symplify\PackageBuilder\Parameter\ParameterProvider;
-use Symplify\PackageBuilder\Yaml\ParametersMerger;
-use Symplify\SmartFileSystem\SmartFileInfo;
-use Symplify\SmartFileSystem\SmartFileSystem;
 use Webmozart\Assert\Assert;
 
 final class ApplicationFileProcessor
@@ -44,17 +42,16 @@ final class ApplicationFileProcessor
      * @param FileProcessorInterface[] $fileProcessors
      */
     public function __construct(
-        private readonly SmartFileSystem $smartFileSystem,
+        private readonly Filesystem $filesystem,
         private readonly FileDiffFileDecorator $fileDiffFileDecorator,
         private readonly RemovedAndAddedFilesProcessor $removedAndAddedFilesProcessor,
         private readonly OutputStyleInterface $rectorOutputStyle,
         private readonly FileFactory $fileFactory,
         private readonly NodeScopeResolver $nodeScopeResolver,
-        private readonly ParametersMerger $parametersMerger,
+        private readonly ArrayParametersMerger $arrayParametersMerger,
         private readonly ParallelFileProcessor $parallelFileProcessor,
         private readonly ParameterProvider $parameterProvider,
         private readonly ScheduleFactory $scheduleFactory,
-        private readonly FilePathNormalizer $filePathNormalizer,
         private readonly CpuCoreCountProvider $cpuCoreCountProvider,
         private readonly array $fileProcessors = []
     ) {
@@ -128,7 +125,7 @@ final class ApplicationFileProcessor
                 }
 
                 $result = $fileProcessor->process($file, $configuration);
-                $systemErrorsAndFileDiffs = $this->parametersMerger->merge($systemErrorsAndFileDiffs, $result);
+                $systemErrorsAndFileDiffs = $this->arrayParametersMerger->merge($systemErrorsAndFileDiffs, $result);
             }
 
             // progress bar +1
@@ -162,10 +159,11 @@ final class ApplicationFileProcessor
 
     private function printFile(File $file): void
     {
-        $smartFileInfo = $file->getSmartFileInfo();
+        $filePath = $file->getFilePath();
+        $this->filesystem->dumpFile($filePath, $file->getFileContent());
 
-        $this->smartFileSystem->dumpFile($smartFileInfo->getPathname(), $file->getFileContent());
-        $this->smartFileSystem->chmod($smartFileInfo->getRealPath(), $smartFileInfo->getPerms());
+        // @todo how to keep original chmod rights?
+        // $this->filesystem->chmod($filePath, $smartFileInfo->getPerms());
     }
 
     /**
@@ -198,13 +196,14 @@ final class ApplicationFileProcessor
     }
 
     /**
-     * @param SmartFileInfo[] $fileInfos
+     * @param string[] $filePaths
      * @return array{system_errors: SystemError[], file_diffs: FileDiff[]}
      */
-    private function runParallel(array $fileInfos, Configuration $configuration, InputInterface $input): array
+    private function runParallel(array $filePaths, Configuration $configuration, InputInterface $input): array
     {
+        // @todo possibly relative paths?
         // must be a string, otherwise the serialization returns empty arrays
-        $filePaths = $this->filePathNormalizer->resolveFilePathsFromFileInfos($fileInfos);
+        // $filePaths // = $this->filePathNormalizer->resolveFilePathsFromFileInfos($filePaths);
 
         $schedule = $this->scheduleFactory->create(
             $this->cpuCoreCountProvider->provide(),
@@ -279,17 +278,16 @@ final class ApplicationFileProcessor
     {
         Assert::allIsAOf($files, File::class);
 
-        $filePaths = [];
+        $phpFilePaths = [];
 
         foreach ($files as $file) {
-            $smartFileInfo = $file->getSmartFileInfo();
-            $pathname = $smartFileInfo->getPathname();
+            $filePath = $file->getFilePath();
 
-            if (\str_ends_with($pathname, '.php')) {
-                $filePaths[] = $pathname;
+            if (\str_ends_with($filePath, '.php')) {
+                $phpFilePaths[] = $filePath;
             }
         }
 
-        return $filePaths;
+        return $phpFilePaths;
     }
 }

@@ -17,7 +17,6 @@ use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt\If_;
-use PHPStan\Type\ArrayType;
 use Rector\Core\NodeAnalyzer\ArgsAnalyzer;
 use Rector\Core\PhpParser\Comparing\NodeComparator;
 use Rector\Core\PhpParser\Node\Value\ValueResolver;
@@ -26,8 +25,8 @@ use Rector\NodeNameResolver\NodeNameResolver;
 use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\NodeTypeResolver\NodeTypeResolver;
 use Rector\Php80\ValueObject\ArrayDimFetchAndConstFetch;
+use Rector\PhpDocParser\NodeTraverser\SimpleCallableNodeTraverser;
 use Rector\PostRector\Collector\NodesToRemoveCollector;
-use Symplify\Astral\NodeTraverser\SimpleCallableNodeTraverser;
 
 final class TokenManipulator
 {
@@ -62,7 +61,7 @@ final class TokenManipulator
             }
 
             $tokenStaticType = $this->nodeTypeResolver->getType($node->var);
-            if (! $tokenStaticType instanceof ArrayType) {
+            if (! $tokenStaticType->isArray()->yes()) {
                 return null;
             }
 
@@ -88,7 +87,7 @@ final class TokenManipulator
             }
 
             $tokenStaticType = $this->nodeTypeResolver->getType($node->expr);
-            if ($tokenStaticType instanceof ArrayType) {
+            if ($tokenStaticType->isArray()->yes()) {
                 return null;
             }
 
@@ -104,7 +103,7 @@ final class TokenManipulator
             }
 
             $tokenStaticType = $this->nodeTypeResolver->getType($node->expr);
-            if ($tokenStaticType instanceof ArrayType) {
+            if ($tokenStaticType->isArray()->yes()) {
                 return null;
             }
 
@@ -237,7 +236,7 @@ final class TokenManipulator
             }
 
             $tokenStaticType = $this->nodeTypeResolver->getType($possibleTokenArray->var);
-            if (! $tokenStaticType instanceof ArrayType) {
+            if (! $tokenStaticType->isArray()->yes()) {
                 return null;
             }
 

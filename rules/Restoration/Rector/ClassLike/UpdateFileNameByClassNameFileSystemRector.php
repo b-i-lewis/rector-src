@@ -63,15 +63,15 @@ CODE_SAMPLE
 
         $classShortName = $this->nodeNameResolver->getShortName($className);
 
-        $smartFileInfo = $this->file->getSmartFileInfo();
+        $filePath = $this->file->getFilePath();
+        $basename = pathinfo($filePath, PATHINFO_FILENAME);
 
-        // matches
-        if ($classShortName === $smartFileInfo->getBasenameWithoutSuffix()) {
+        if ($classShortName === $basename) {
             return null;
         }
 
         // no match → rename file
-        $newFileLocation = $smartFileInfo->getPath() . DIRECTORY_SEPARATOR . $classShortName . '.php';
+        $newFileLocation = dirname($filePath) . DIRECTORY_SEPARATOR . $classShortName . '.php';
         $this->removedAndAddedFilesCollector->addMovedFile($this->file, $newFileLocation);
 
         return null;

@@ -16,14 +16,15 @@ use PhpParser\Node\Expr\Ternary;
 use PhpParser\Node\Expr\Yield_;
 use PhpParser\Node\Name;
 use PhpParser\Node\Name\FullyQualified;
+use PhpParser\Node\Param;
 use PhpParser\Node\Scalar\DNumber;
 use PhpParser\Node\Scalar\EncapsedStringPart;
+use PhpParser\Node\Scalar\LNumber;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Declare_;
 use PhpParser\Node\Stmt\Nop;
-use PhpParser\Node\Stmt\TraitUse;
 use PhpParser\Node\Stmt\Use_;
 use PhpParser\PrettyPrinter\Standard;
 use Rector\Comments\NodeDocBlock\DocBlockUpdater;
@@ -92,6 +93,8 @@ final class BetterStandardPrinter extends Standard implements NodePrinterInterfa
         $this->insertionMap['Stmt_Function->returnType'] = [')', false, ': ', null];
         $this->insertionMap['Expr_Closure->returnType'] = [')', false, ': ', null];
         $this->insertionMap['Expr_ArrowFunction->returnType'] = [')', false, ': ', null];
+
+        $this->tabOrSpaceIndentCharacter = $this->rectorConfigProvider->getIndentChar();
     }
 
     /**
@@ -102,8 +105,6 @@ final class BetterStandardPrinter extends Standard implements NodePrinterInterfa
     public function printFormatPreserving(array $stmts, array $origStmts, array $origTokens): string
     {
         $newStmts = $this->resolveNewStmts($stmts);
-
-        $this->tabOrSpaceIndentCharacter = $this->rectorConfigProvider->getIndentChar();
 
         $content = parent::printFormatPreserving($newStmts, $origStmts, $origTokens);
 
@@ -177,10 +178,10 @@ final class BetterStandardPrinter extends Standard implements NodePrinterInterfa
      */
     protected function indent(): void
     {
-        $multiplier = $this->tabOrSpaceIndentCharacter === ' ' ? 4 : 1;
+        $indentSize = $this->rectorConfigProvider->getIndentSize();
 
-        $this->indentLevel += $multiplier;
-        $this->nl .= str_repeat($this->tabOrSpaceIndentCharacter, $multiplier);
+        $this->indentLevel += $indentSize;
+        $this->nl .= str_repeat($this->tabOrSpaceIndentCharacter, $indentSize);
     }
 
     /**
@@ -252,8 +253,8 @@ final class BetterStandardPrinter extends Standard implements NodePrinterInterfa
      */
     protected function pScalar_DNumber(DNumber $dNumber): string
     {
-        if (is_string($dNumber->value)) {
-            return $dNumber->value;
+        if ($this->shouldPrintNewRawValue($dNumber)) {
+            return (string) $dNumber->getAttribute(AttributeKey::RAW_VALUE);
         }
 
         return parent::pScalar_DNumber($dNumber);
@@ -362,28 +363,6 @@ final class BetterStandardPrinter extends Standard implements NodePrinterInterfa
     }
 
     /**
-     * Clean class and trait from empty "use x;" for traits causing invalid code
-     */
-    protected function pStmt_Class(Class_ $class): string
-    {
-        $shouldReindex = false;
-
-        foreach ($class->stmts as $key => $stmt) {
-            // remove empty ones
-            if ($stmt instanceof TraitUse && $stmt->traits === []) {
-                unset($class->stmts[$key]);
-                $shouldReindex = true;
-            }
-        }
-
-        if ($shouldReindex) {
-            $class->stmts = array_values($class->stmts);
-        }
-
-        return parent::pStmt_Class($class);
-    }
-
-    /**
      * It remove all spaces extra to parent
      */
     protected function pStmt_Declare(Declare_ $declare): string
@@ -467,6 +446,38 @@ final class BetterStandardPrinter extends Standard implements NodePrinterInterfa
             . (($modifiers & Class_::MODIFIER_PRIVATE) !== 0 ? 'private ' : '')
             . (($modifiers & Class_::MODIFIER_STATIC) !== 0 ? 'static ' : '')
             . (($modifiers & Class_::MODIFIER_READONLY) !== 0 ? 'readonly ' : '');
+    }
+
+    /**
+     * Invoke re-print even if only raw value was changed.
+     * That allows PHPStan to use int strict types, while changing the value with literal "_"
+     */
+    protected function pScalar_LNumber(LNumber $lNumber): string|int
+    {
+        if ($this->shouldPrintNewRawValue($lNumber)) {
+            return (string) $lNumber->getAttribute(AttributeKey::RAW_VALUE);
+        }
+
+        return parent::pScalar_LNumber($lNumber);
+    }
+
+    /**
+     * Keep attributes on newlines
+     */
+    protected function pParam(Param $param): string
+    {
+        return $this->pAttrGroups($param->attrGroups)
+            . $this->pModifiers($param->flags)
+            . ($param->type instanceof Node ? $this->p($param->type) . ' ' : '')
+            . ($param->byRef ? '&' : '')
+            . ($param->variadic ? '...' : '')
+            . $this->p($param->var)
+            . ($param->default instanceof Expr ? ' = ' . $this->p($param->default) : '');
+    }
+
+    private function shouldPrintNewRawValue(LNumber|DNumber $lNumber): bool
+    {
+        return $lNumber->getAttribute(AttributeKey::REPRINT_RAW_VALUE) === true;
     }
 
     private function resolveContentOnExpr(Expr $expr, string $content): string

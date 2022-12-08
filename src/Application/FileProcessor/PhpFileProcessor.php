@@ -12,6 +12,7 @@ use Rector\Core\Application\FileSystem\RemovedAndAddedFilesCollector;
 use Rector\Core\Contract\Console\OutputStyleInterface;
 use Rector\Core\Contract\Processor\FileProcessorInterface;
 use Rector\Core\Exception\ShouldNotHappenException;
+use Rector\Core\FileSystem\FilePathHelper;
 use Rector\Core\PhpParser\Printer\FormatPerservingPrinter;
 use Rector\Core\Provider\CurrentFileProvider;
 use Rector\Core\ValueObject\Application\File;
@@ -33,7 +34,8 @@ final class PhpFileProcessor implements FileProcessorInterface
         private readonly FileDiffFileDecorator $fileDiffFileDecorator,
         private readonly CurrentFileProvider $currentFileProvider,
         private readonly PostFileProcessor $postFileProcessor,
-        private readonly ErrorFactory $errorFactory
+        private readonly ErrorFactory $errorFactory,
+        private readonly FilePathHelper $filePathHelper
     ) {
     }
 
@@ -56,6 +58,8 @@ final class PhpFileProcessor implements FileProcessorInterface
             return $systemErrorsAndFileDiffs;
         }
 
+        $this->currentFileProvider->setFile($file);
+
         // 2. change nodes with Rectors
         do {
             $file->changeHasChanged(false);
@@ -67,8 +71,6 @@ final class PhpFileProcessor implements FileProcessorInterface
             $file->changeNewStmts($newStmts);
 
             // 4. print to file or string
-            $this->currentFileProvider->setFile($file);
-
             // important to detect if file has changed
             $this->printFile($file, $configuration);
         } while ($file->hasChanged());
@@ -85,8 +87,8 @@ final class PhpFileProcessor implements FileProcessorInterface
 
     public function supports(File $file, Configuration $configuration): bool
     {
-        $smartFileInfo = $file->getSmartFileInfo();
-        return $smartFileInfo->hasSuffixes($configuration->getFileExtensions());
+        $filePathExtension = pathinfo($file->getFilePath(), PATHINFO_EXTENSION);
+        return in_array($filePathExtension, $configuration->getFileExtensions(), true);
     }
 
     /**
@@ -123,7 +125,7 @@ final class PhpFileProcessor implements FileProcessorInterface
 
             $autoloadSystemError = $this->errorFactory->createAutoloadError(
                 $analysedCodeException,
-                $file->getSmartFileInfo()
+                $file->getFilePath()
             );
             return [$autoloadSystemError];
         } catch (Throwable $throwable) {
@@ -131,11 +133,8 @@ final class PhpFileProcessor implements FileProcessorInterface
                 throw $throwable;
             }
 
-            $systemError = new SystemError(
-                $throwable->getMessage(),
-                $file->getRelativeFilePath(),
-                $throwable->getLine(),
-            );
+            $relativeFilePath = $this->filePathHelper->relativePath($file->getFilePath());
+            $systemError = new SystemError($throwable->getMessage(), $relativeFilePath, $throwable->getLine());
 
             return [$systemError];
         }
@@ -145,8 +144,8 @@ final class PhpFileProcessor implements FileProcessorInterface
 
     private function printFile(File $file, Configuration $configuration): void
     {
-        $smartFileInfo = $file->getSmartFileInfo();
-        if ($this->removedAndAddedFilesCollector->isFileRemoved($smartFileInfo)) {
+        $filePath = $file->getFilePath();
+        if ($this->removedAndAddedFilesCollector->isFileRemoved($filePath)) {
             // skip, because this file exists no more
             return;
         }
@@ -165,8 +164,7 @@ final class PhpFileProcessor implements FileProcessorInterface
             return;
         }
 
-        $smartFileInfo = $file->getSmartFileInfo();
-        $message = $smartFileInfo->getRelativeFilePathFromDirectory(getcwd());
-        $this->rectorOutputStyle->writeln($message);
+        $relativeFilePath = $this->filePathHelper->relativePath($file->getFilePath());
+        $this->rectorOutputStyle->writeln($relativeFilePath);
     }
 }

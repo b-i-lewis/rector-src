@@ -6,11 +6,11 @@ namespace Rector\Core\PhpParser\Node\Value;
 
 use PhpParser\ConstExprEvaluationException;
 use PhpParser\ConstExprEvaluator;
-use PhpParser\Node;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\BinaryOp\Concat;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\ConstFetch;
+use PhpParser\Node\Name;
 use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Scalar\MagicConst\Dir;
 use PhpParser\Node\Scalar\MagicConst\File;
@@ -30,6 +30,7 @@ use Rector\NodeTypeResolver\NodeTypeResolver;
 
 /**
  * @see \Rector\Core\Tests\PhpParser\Node\Value\ValueResolverTest
+ * @todo make use of constant type of $scope->getType()
  */
 final class ValueResolver
 {
@@ -109,32 +110,24 @@ final class ValueResolver
         return false;
     }
 
-    public function isFalse(Node $node): bool
+    public function isFalse(Expr $expr): bool
     {
-        return $this->constFetchAnalyzer->isFalse($node);
+        return $this->constFetchAnalyzer->isFalse($expr);
     }
 
-    public function isTrueOrFalse(Node $node): bool
+    public function isTrueOrFalse(Expr $expr): bool
     {
-        return $this->constFetchAnalyzer->isTrueOrFalse($node);
+        return $this->constFetchAnalyzer->isTrueOrFalse($expr);
     }
 
-    public function isTrue(Node $node): bool
+    public function isTrue(Expr $expr): bool
     {
-        return $this->constFetchAnalyzer->isTrue($node);
+        return $this->constFetchAnalyzer->isTrue($expr);
     }
 
-    public function isNull(Node $node): bool
+    public function isNull(Expr $expr): bool
     {
-        return $this->constFetchAnalyzer->isNull($node);
-    }
-
-    public function isValueEqual(Expr $firstExpr, Expr $secondExpr): bool
-    {
-        $firstValue = $this->getValue($firstExpr);
-        $secondValue = $this->getValue($secondExpr);
-
-        return $firstValue === $secondValue;
+        return $this->constFetchAnalyzer->isNull($expr);
     }
 
     /**
@@ -193,7 +186,7 @@ final class ValueResolver
             }
 
             // resolve "SomeClass::SOME_CONST"
-            if ($expr instanceof ClassConstFetch) {
+            if ($expr instanceof ClassConstFetch && $expr->class instanceof Name) {
                 return $this->resolveClassConstFetch($expr);
             }
 
@@ -238,16 +231,21 @@ final class ValueResolver
     private function resolveDirConstant(): string
     {
         $file = $this->currentFileProvider->getFile();
-        $smartFileInfo = $file->getSmartFileInfo();
-        return $smartFileInfo->getPath();
+        if (! $file instanceof \Rector\Core\ValueObject\Application\File) {
+            throw new ShouldNotHappenException();
+        }
+
+        return dirname($file->getFilePath());
     }
 
     private function resolveFileConstant(File $file): string
     {
         $file = $this->currentFileProvider->getFile();
+        if (! $file instanceof \Rector\Core\ValueObject\Application\File) {
+            throw new ShouldNotHappenException();
+        }
 
-        $smartFileInfo = $file->getSmartFileInfo();
-        return $smartFileInfo->getPathname();
+        return $file->getFilePath();
     }
 
     /**

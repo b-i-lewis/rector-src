@@ -6,9 +6,10 @@ namespace Rector\TypeDeclaration\Rector\Property;
 
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
 use PHPStan\Type\MixedType;
-use PHPStan\Type\Type;
+use PHPStan\Type\ObjectType;
 use Rector\BetterPhpDocParser\PhpDocManipulator\PhpDocTypeChanger;
 use Rector\Core\Php\PhpVersionProvider;
 use Rector\Core\Rector\AbstractRector;
@@ -75,67 +76,89 @@ CODE_SAMPLE
      */
     public function getNodeTypes(): array
     {
-        return [Property::class];
+        return [Class_::class];
     }
 
     /**
-     * @param Property $node
+     * @param Class_ $node
      */
     public function refactor(Node $node): ?Node
     {
-        if ($node->type !== null) {
+        $hasChanged = false;
+
+        $constructClassMethod = $node->getMethod(MethodName::CONSTRUCT);
+        if (! $constructClassMethod instanceof ClassMethod) {
             return null;
         }
 
-        $propertyType = $this->trustedClassMethodPropertyTypeInferer->inferProperty($node, MethodName::CONSTRUCT);
-        if (! $propertyType instanceof Type) {
-            return null;
+        foreach ($node->getProperties() as $property) {
+            $propertyType = $this->trustedClassMethodPropertyTypeInferer->inferProperty(
+                $property,
+                $constructClassMethod
+            );
+
+            if ($propertyType instanceof MixedType) {
+                continue;
+            }
+
+            if ($propertyType instanceof ObjectType && $propertyType->isInstanceOf(
+                'Doctrine\Common\Collections\Collection'
+            )->yes()) {
+                continue;
+            }
+
+            if (! $this->propertyTypeOverrideGuard->isLegal($property)) {
+                continue;
+            }
+
+            $phpDocInfo = $this->phpDocInfoFactory->createFromNodeOrEmpty($property);
+
+            // public property can be anything
+            if ($this->isVarDocPreffered($property)) {
+                $this->phpDocTypeChanger->changeVarType($phpDocInfo, $propertyType);
+                $hasChanged = true;
+                continue;
+            }
+
+            $propertyTypeNode = $this->staticTypeMapper->mapPHPStanTypeToPhpParserNode(
+                $propertyType,
+                TypeKind::PROPERTY
+            );
+            if (! $propertyTypeNode instanceof Node) {
+                continue;
+            }
+
+            if (! $property->isPublic()) {
+                $property->type = $propertyTypeNode;
+            }
+
+            $propertyName = $this->nodeNameResolver->getName($property);
+
+            if ($this->constructorAssignDetector->isPropertyAssigned($node, $propertyName)) {
+                $property->props[0]->default = null;
+            }
+
+            $this->varTagRemover->removeVarTagIfUseless($phpDocInfo, $property);
         }
 
-        if ($propertyType instanceof MixedType) {
-            return null;
-        }
-
-        $classLike = $this->betterNodeFinder->findParentType($node, Class_::class);
-        if (! $classLike instanceof Class_) {
-            return null;
-        }
-
-        if (! $this->propertyTypeOverrideGuard->isLegal($node)) {
-            return null;
-        }
-
-        $phpDocInfo = $this->phpDocInfoFactory->createFromNodeOrEmpty($node);
-        if (! $this->phpVersionProvider->isAtLeastPhpVersion(PhpVersionFeature::TYPED_PROPERTIES)) {
-            $this->phpDocTypeChanger->changeVarType($phpDocInfo, $propertyType);
+        if ($hasChanged) {
             return $node;
         }
 
-        $propertyTypeNode = $this->staticTypeMapper->mapPHPStanTypeToPhpParserNode($propertyType, TypeKind::PROPERTY);
-        if (! $propertyTypeNode instanceof Node) {
-            return null;
-        }
-
-        // public property can be anything
-        if ($node->isPublic()) {
-            $this->phpDocTypeChanger->changeVarType($phpDocInfo, $propertyType);
-            return $node;
-        }
-
-        $node->type = $propertyTypeNode;
-        $propertyName = $this->nodeNameResolver->getName($node);
-
-        if ($this->constructorAssignDetector->isPropertyAssigned($classLike, $propertyName)) {
-            $node->props[0]->default = null;
-        }
-
-        $this->varTagRemover->removeVarTagIfUseless($phpDocInfo, $node);
-
-        return $node;
+        return null;
     }
 
     public function provideMinPhpVersion(): int
     {
         return PhpVersionFeature::TYPED_PROPERTIES;
+    }
+
+    private function isVarDocPreffered(Property $property): bool
+    {
+        if ($property->isPublic()) {
+            return true;
+        }
+
+        return ! $this->phpVersionProvider->isAtLeastPhpVersion(PhpVersionFeature::TYPED_PROPERTIES);
     }
 }
