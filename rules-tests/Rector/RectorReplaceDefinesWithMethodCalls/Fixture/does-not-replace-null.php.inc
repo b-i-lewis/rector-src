@@ -1,0 +1,7 @@
+<?php
+$testVar = null > 1 ? 1 : 0;
+?>
+-----
+<?php
+$testVar = null > 1 ? 1 : 0;
+?>
