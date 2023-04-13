@@ -45,6 +45,7 @@ final class RectorReplaceDefinesWithMethodCalls extends AbstractRector implement
             if (
                 $this->getName($node->name) === 'true'
                 || $this->getName($node->name) === 'false'
+                || $this->getName($node->name) === 'null'
             ) {
                 return $node;
             }
