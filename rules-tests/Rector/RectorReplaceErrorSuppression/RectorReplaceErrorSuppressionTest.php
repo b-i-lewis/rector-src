@@ -1,10 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rector\Tests\Rector\RectorReplaceErrorSuppression;
 
 use Iterator;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
-use Symplify\SmartFileSystem\SmartFileInfo;
 
 class RectorReplaceErrorSuppressionTest extends AbstractRectorTestCase
 {

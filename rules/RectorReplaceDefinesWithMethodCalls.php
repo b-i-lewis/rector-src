@@ -4,30 +4,28 @@ declare(strict_types=1);
 
 namespace Rector;
 
-
 use PhpParser\Node;
-use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
-use Rector\Core\Rector\AbstractRector;
-use Webmozart\Assert\Assert;
-use Symplify\RuleDocGenerator\ValueObject\CodeSample\ConfiguredCodeSample;
-use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\FuncCall;
+use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
+use Rector\Core\Rector\AbstractRector;
+use Symplify\RuleDocGenerator\ValueObject\CodeSample\ConfiguredCodeSample;
+use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
+use Webmozart\Assert\Assert;
 
 final class RectorReplaceDefinesWithMethodCalls extends AbstractRector implements ConfigurableRectorInterface
 {
-
     private array $replacementClass;
 
     /**
      * What nodes are we looking for
      */
-    public function getNodeTypes() : array
+    public function getNodeTypes(): array
     {
         return [ConstFetch::class, FuncCall::class];
     }
 
-    public function configure(array $configuration) : void
+    public function configure(array $configuration): void
     {
         Assert::string($configuration['className']);
         Assert::string($configuration['methodName']);
@@ -50,13 +48,30 @@ final class RectorReplaceDefinesWithMethodCalls extends AbstractRector implement
                 return $node;
             }
             $args = [$this->getName($node->name)];
-
         }
 
-        if (null === $args) {
+        if ($args === null) {
             return $node;
         }
         return $this->returnNewNode($args);
+    }
+
+    public function getRuleDefinition(): RuleDefinition
+    {
+        return new RuleDefinition(
+            'Replace constant by new ones',
+            [
+                new ConfiguredCodeSample(<<<'CODE_SAMPLE'
+SOME_DEFINE_NAME
+CODE_SAMPLE
+                    , <<<'CODE_SAMPLE'
+className::classMethod('SOME_DEFINE_NAME');
+CODE_SAMPLE
+                    , [
+                        'className' => '\Tests\App',
+                        'methodName' => 'getDefine',
+                    ])]
+        );
     }
 
     private function returnNewNode($args)
@@ -66,18 +81,5 @@ final class RectorReplaceDefinesWithMethodCalls extends AbstractRector implement
             $this->replacementClass['methodName'],
             $args
         );
-    }
-
-    public function getRuleDefinition() : RuleDefinition
-    {
-        return new RuleDefinition(
-            'Replace constant by new ones',
-            [new ConfiguredCodeSample(<<<'CODE_SAMPLE'
-SOME_DEFINE_NAME
-CODE_SAMPLE
-                , <<<'CODE_SAMPLE'
-className::classMethod('SOME_DEFINE_NAME');
-CODE_SAMPLE
-                , ['className' => '\Tests\App', 'methodName' => 'getDefine'])]);
     }
 }
