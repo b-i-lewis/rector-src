@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Rector\Tests\Rector\RectorReplaceDefinesWithMethodCalls;
 
-use Iterator;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
+use Symplify\SmartFileSystem\SmartFileInfo;
+use Iterator;
 
 final class RectorReplaceDefinesWithMethodCallsTest extends AbstractRectorTestCase
 {
